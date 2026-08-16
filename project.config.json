@@ -1,0 +1,14 @@
+{
+  "description": "人生一杯 · 微信小游戏",
+  "appid": "touristappid",
+  "compileType": "game",
+  "projectname": "water-pour-game",
+  "libVersion": "latest",
+  "setting": {
+    "es6": true,
+    "minified": false,
+    "postcss": false,
+    "urlCheck": false
+  },
+  "srcMiniprogramRoot": "./"
+}

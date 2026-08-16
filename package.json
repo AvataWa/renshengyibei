@@ -1,0 +1,9 @@
+{
+  "name": "water-pour-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "人生一杯 · 微信小游戏（附浏览器预览）",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}
