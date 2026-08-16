@@ -63,6 +63,7 @@
     this.level = 0;
     this.poured = 0;
     this.lastCup = null;     // 上一杯杯型（避免连续重复）
+    this.perfectStreak = 0;  // 连续完美计数（2 连 3 分，3 连起 4 分）
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
     this.streamX = 0;        // 水流落点 X（首帧倒水前兜底，避免 NaN 粒子）
@@ -122,6 +123,7 @@
       if (this.phase === 'aim' && !this.usedPress) {
         this.usedPress = true;
         this.pressing = true;
+        this.pressStart = this.time;   // 误触保护计时起点
         this.phase = 'press';
       }
       return;
@@ -140,6 +142,13 @@
   Game.prototype.onRelease = function () {
     if (this.state === 'play' && this.phase === 'press') {
       this.pressing = false;
+      // 误触保护：按压不足 0.06s 视为误碰，撤销本次按压（此时倾角未到出水阈值，无水量变化）
+      if (this.time - this.pressStart < 0.06) {
+        this.usedPress = false;
+        this.phase = 'aim';
+        this.angle = 0;
+        return;
+      }
       this.phase = 'settle';
       this.phaseTimer = 0.35;
     }
@@ -187,6 +196,7 @@
     this.newRecord = false;
     this.tierIdx = 0;          // 每局从 0 段（倒奶）重新开始
     this.lastCup = null;       // 跨局不继承杯型记忆
+    this.perfectStreak = 0;    // 跨局不继承连击
     this.newRound();
   };
 
@@ -240,7 +250,16 @@
     this.failReason = '';
   };
 
-  Game.prototype.win = function (pts, label) {
+  Game.prototype.win = function (basePts, label) {
+    // 连完美加分：完美 2 分，2 连 3 分，3 连及以上 4 分；非完美/失败断连
+    var pts = basePts;
+    if (basePts === 2) {
+      this.perfectStreak++;
+      pts = 2 + Math.min(this.perfectStreak - 1, 2);
+      if (this.perfectStreak >= 2) label = this.perfectStreak + '连完美!';
+    } else {
+      this.perfectStreak = 0;
+    }
     this.score += pts;
     this.totalCups++;
     this.env.setStorage('totalCups', String(this.totalCups));
@@ -248,20 +267,23 @@
     this.totalScore += pts;
     this.env.setStorage('totalScore', String(this.totalScore));
     var newTier = Cups.tierFor(this.score);
-    if (newTier > this.tierIdx) {
+    var didTierUp = newTier > this.tierIdx;
+    if (didTierUp) {
       this.tierIdx = newTier;
       var t = Cups.TIERS[newTier];
       this.floats.push({ text: '升段！' + t.name, x: this.W / 2, y: this.H * 0.32, life: 1.8, color: PAL.INK });
       this.toast(t.line);
       if (this.vibrateOn) this.env.vibrate();
     }
-    this.floats.push({ text: '+' + pts + ' ' + label, x: this.cx, y: this.cupTop - this.H * 0.075, life: 1.2, color: pts === 2 ? '#2EA85C' : '#E0861A' });
-    if (pts === 2) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
+    this.floats.push({ text: '+' + pts + ' ' + label, x: this.cx, y: this.cupTop - this.H * 0.075, life: 1.2, color: basePts === 2 ? '#2EA85C' : '#E0861A' });
+    // 完美彩蛋文案：升段回合已展示升段寄语，不再叠完美提示
+    if (basePts === 2 && !didTierUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.phase = 'next';
     this.phaseTimer = 0.9;
   };
 
   Game.prototype.fail = function (reason) {
+    this.perfectStreak = 0;
     this.failReason = reason;
     this.phase = 'failed';
     this.phaseTimer = 0.9;
