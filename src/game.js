@@ -606,9 +606,23 @@
     var sprRec = this.cup.sprite && this.assets.cups && this.assets.cups[this.cup.sprite];
     var useSpr = !!(sprRec && sprRec.ready);
 
-    // 玻璃体（精灵杯跳过：瓶身贴图自带质感）
+    // 玻璃质感：左侧一条随杯壁弯曲的白色半透高光带（精灵杯跳过：贴图自带质感）
     if (!useSpr && glassA > 0) {
-      this.traceCup(0);
+      var GN = 24, gi, gt, gw, gy;
+      ctx.beginPath();
+      for (gi = 0; gi <= GN; gi++) {
+        gt = 0.06 + 0.88 * (gi / GN);
+        gw = this.halfW * cup.profile(gt) * 0.80;
+        gy = this.baseY - gt * this.cupH;
+        if (gi === 0) ctx.moveTo(this.cx - gw, gy); else ctx.lineTo(this.cx - gw, gy);
+      }
+      for (gi = GN; gi >= 0; gi--) {
+        gt = 0.06 + 0.88 * (gi / GN);
+        gw = this.halfW * cup.profile(gt) * 0.52;
+        gy = this.baseY - gt * this.cupH;
+        ctx.lineTo(this.cx - gw, gy);
+      }
+      ctx.closePath();
       ctx.fillStyle = 'rgba(255,255,255,' + glassA + ')';
       ctx.fill();
     }
@@ -728,12 +742,14 @@
       ctx.lineCap = 'butt';
     }
 
-    // 杯把（右侧耳形把手，扎啤杯/马克杯感）
+    // 杯把（右侧耳形把手；对象形式可自定义附着位置 t1/t2 与外扩幅度 out）
     if (handleOn && !useSpr) {
-      var ht1 = 0.82, ht2 = 0.45;
+      var hcfg = typeof deco.handle === 'object' && deco.handle ? deco.handle : {};
+      var ht1 = hcfg.t1 != null ? hcfg.t1 : 0.82;   // 上附着点（杯高比例）
+      var ht2 = hcfg.t2 != null ? hcfg.t2 : 0.45;   // 下附着点
+      var hOut = this.halfW * (hcfg.out != null ? hcfg.out : 0.62); // 外扩幅度
       var hw1 = this.halfW * cup.profile(ht1), hw2 = this.halfW * cup.profile(ht2);
       var hy1 = this.baseY - ht1 * this.cupH, hy2 = this.baseY - ht2 * this.cupH;
-      var hOut = this.halfW * 0.62;
       ctx.beginPath();
       ctx.moveTo(this.cx + hw1 - 2, hy1);
       ctx.bezierCurveTo(this.cx + hw1 + hOut, hy1, this.cx + hw2 + hOut, hy2, this.cx + hw2 - 2, hy2);

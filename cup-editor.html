@@ -59,7 +59,7 @@
 </div>
 <div id="stage">
   <canvas id="cv" width="480" height="620"></canvas>
-  <div id="tip">拖动右侧圆点调整杯壁宽度 · 黄带=合格区 绿带=完美区 · 竖虚线=游戏杯口最小宽度</div>
+  <div id="tip">拖动圆点调杯壁 · 菱形节点调杯把（上下两个=附着高度，右侧=外扩大小）· 黄带=合格区 绿带=完美区 · 红虚线=杯口最小宽度</div>
 </div>
 <div id="panel">
   <h3>基础信息</h3>
@@ -121,7 +121,12 @@
     var pass = {};
     PASS_FIELDS.forEach(function (f) { if (cup[f] !== undefined) pass[f] = cup[f]; });
     var deco = {};
-    for (var k in DECO_DEF) deco[k] = (cup.deco && cup.deco[k] !== undefined) ? cup.deco[k] : DECO_DEF[k];
+    for (var k in DECO_DEF) if (k !== 'handle') deco[k] = (cup.deco && cup.deco[k] !== undefined) ? cup.deco[k] : DECO_DEF[k];
+    var hd = cup.deco && cup.deco.handle, ho = (typeof hd === 'object' && hd) ? hd : {};
+    deco.handle = { on: !!hd,
+      t1: ho.t1 != null ? ho.t1 : 0.82,
+      t2: ho.t2 != null ? ho.t2 : 0.45,
+      out: ho.out != null ? ho.out : 0.62 };
     cur = {
       index: index,
       name: cup.name, hint: cup.hint,
@@ -139,7 +144,8 @@
     var pts = [];
     for (var i = 0; i < NPTS; i++) pts.push(i === 0 ? 0.6 : 0.7);
     var deco = {};
-    for (var k in DECO_DEF) deco[k] = DECO_DEF[k];
+    for (var k in DECO_DEF) if (k !== 'handle') deco[k] = DECO_DEF[k];
+    deco.handle = { on: false, t1: 0.82, t2: 0.45, out: 0.62 };
     cur = { index: null, name: '新杯型', hint: '八分满', aspect: 1.4, size: 1.0,
             stem: false, qlo: 0.62, qhi: 0.86, pts: pts, pass: {}, deco: deco };
     snapshot = JSON.parse(JSON.stringify(cur));
@@ -198,14 +204,42 @@
     ctx.closePath();
   }
 
+  // 杯壁开口路径：左壁(顶→底) + 底边 + 右壁(底→顶)，杯口不画线（与游戏 traceCupWall 一致）
+  function wallPath(L) {
+    var i, N = 48, p;
+    ctx.beginPath();
+    for (i = N; i >= 0; i--) {
+      p = ptXY(i / N, -profileAt(i / N), L);
+      i === N ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    for (i = 0; i <= N; i++) {
+      p = ptXY(i / N, profileAt(i / N), L);
+      ctx.lineTo(p.x, p.y);
+    }
+  }
+
   function draw() {
     if (!cur) return;
     var L = layout(), g = L.g;
     ctx.clearRect(0, 0, cv.width, cv.height);
 
-    // 玻璃体（在色带之下，与游戏绘制顺序一致）
+    // 玻璃质感：左侧随杯壁弯曲的白色半透高光带（与游戏一致）
     if (cur.deco.glass > 0) {
-      cupPath(L, 0);
+      var GN = 24, gi, gt, gw0, gy0;
+      ctx.beginPath();
+      for (gi = 0; gi <= GN; gi++) {
+        gt = 0.06 + 0.88 * (gi / GN);
+        gw0 = profileAt(gt) * L.g.halfW * 0.80 * L.scale;
+        gy0 = L.baseY - gt * L.g.cupH * L.scale;
+        gi === 0 ? ctx.moveTo(L.cx - gw0, gy0) : ctx.lineTo(L.cx - gw0, gy0);
+      }
+      for (gi = GN; gi >= 0; gi--) {
+        gt = 0.06 + 0.88 * (gi / GN);
+        gw0 = profileAt(gt) * L.g.halfW * 0.52 * L.scale;
+        gy0 = L.baseY - gt * L.g.cupH * L.scale;
+        ctx.lineTo(L.cx - gw0, gy0);
+      }
+      ctx.closePath();
       ctx.fillStyle = 'rgba(255,255,255,' + cur.deco.glass + ')';
       ctx.fill();
     }
@@ -220,13 +254,10 @@
     band(L, plo, cur.qhi, 'rgba(105,176,86,0.38)');
     ctx.restore();
 
-    // 杯壁
-    cupPath(L, 0);
+    // 杯壁（开口路径：杯口无描边线，与游戏一致）
+    wallPath(L);
     ctx.strokeStyle = cur.deco.wall; ctx.lineWidth = cur.deco.wallW * L.scale * 1.6;
     ctx.lineJoin = 'round'; ctx.stroke();
-    // 杯底封口线
-    var pb = ptXY(0, profileAt(0), L), pb2 = ptXY(0, -profileAt(0), L);
-    ctx.beginPath(); ctx.moveTo(pb2.x, pb2.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
 
     // 高脚
     if (cur.stem) {
@@ -236,12 +267,13 @@
       ctx.lineTo(L.cx + g.halfW * 0.45 * L.scale, footY); ctx.stroke();
     }
 
-    // 杯把
-    if (cur.deco.handle) {
-      var ht1 = 0.82, ht2 = 0.45;
-      var hw1 = profileAt(ht1) * g.halfW * L.scale, hw2 = profileAt(ht2) * g.halfW * L.scale;
-      var hy1 = L.baseY - ht1 * g.cupH * L.scale, hy2 = L.baseY - ht2 * g.cupH * L.scale;
-      var hOut = g.halfW * 0.62 * L.scale;
+    // 杯把（参数化：上/下附着点 + 外扩幅度，可拖拽节点调整）
+    handleNodes = [];
+    if (cur.deco.handle.on) {
+      var hh = cur.deco.handle;
+      var hw1 = profileAt(hh.t1) * g.halfW * L.scale, hw2 = profileAt(hh.t2) * g.halfW * L.scale;
+      var hy1 = L.baseY - hh.t1 * g.cupH * L.scale, hy2 = L.baseY - hh.t2 * g.cupH * L.scale;
+      var hOut = g.halfW * hh.out * L.scale;
       ctx.beginPath();
       ctx.moveTo(L.cx + hw1 - 2, hy1);
       ctx.bezierCurveTo(L.cx + hw1 + hOut, hy1, L.cx + hw2 + hOut, hy2, L.cx + hw2 - 2, hy2);
@@ -249,6 +281,12 @@
       ctx.closePath();
       ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
       ctx.strokeStyle = cur.deco.wall; ctx.lineWidth = Math.max(2, cur.deco.wallW * L.scale * 1.6 - 1); ctx.stroke();
+      // 杯把控制节点：上附着点(上下拖) / 下附着点(上下拖) / 外扩点(左右拖)
+      handleNodes = [
+        { role: 't1', x: L.cx + hw1, y: hy1 },
+        { role: 't2', x: L.cx + hw2, y: hy2 },
+        { role: 'out', x: L.cx + Math.max(hw1, hw2) + hOut, y: (hy1 + hy2) / 2 }
+      ];
     }
 
     // 内壁刻度线
@@ -291,6 +329,16 @@
       ctx.beginPath(); ctx.arc(pr.x, pr.y, 7, 0, 7);
       ctx.fillStyle = i === dragIdx ? '#e8a33d' : '#fff'; ctx.fill();
       ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // 杯把控制节点（菱形：上下两个调附着高度，右侧调外扩大小）
+    for (var hi = 0; hi < handleNodes.length; hi++) {
+      var hn = handleNodes[hi];
+      ctx.save(); ctx.translate(hn.x, hn.y); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = dragHandle === hn.role ? '#e8a33d' : '#fff';
+      ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 2;
+      ctx.fillRect(-6, -6, 12, 12); ctx.strokeRect(-6, -6, 12, 12);
+      ctx.restore();
     }
 
     // 数据面板
@@ -349,8 +397,15 @@
     // 装饰：只在非默认时输出（默认外观与 game.js 一致，不必冗余）
     var decoParts = [];
     for (var dk in DECO_DEF) {
+      if (dk === 'handle') continue;
       var dv = cur.deco[dk];
       if (dv !== DECO_DEF[dk]) decoParts.push(dk + ': ' + (typeof dv === 'string' ? "'" + dv + "'" : dv));
+    }
+    if (cur.deco.handle.on) {
+      var hh = cur.deco.handle;
+      var hdef = hh.t1 === 0.82 && hh.t2 === 0.45 && hh.out === 0.62;
+      decoParts.push(hdef ? 'handle: true'
+        : 'handle: { t1: ' + hh.t1 + ', t2: ' + hh.t2 + ', out: ' + hh.out + ' }');
     }
     if (decoParts.length) lines.push('      deco: { ' + decoParts.join(', ') + ' },');
     // 数组折行，每行 6 个数
@@ -377,7 +432,7 @@
     $('fWall').value = cur.deco.wall;
     $('fWallW').value = cur.deco.wallW; $('fGlass').value = cur.deco.glass;
     $('fTicks').value = cur.deco.ticks;
-    $('fDash').checked = cur.deco.dash; $('fHandle').checked = cur.deco.handle;
+    $('fDash').checked = cur.deco.dash; $('fHandle').checked = cur.deco.handle.on;
     syncVals();
   }
   function syncVals() {
@@ -412,29 +467,48 @@
   $('fStem').addEventListener('change', function () { cur.stem = this.checked; draw(); genCode(); });
   bindDeco('fWall', 'wall', 'str'); bindDeco('fWallW', 'wallW', 'num');
   bindDeco('fGlass', 'glass', 'num'); bindDeco('fTicks', 'ticks', 'int');
-  bindDeco('fDash', 'dash', 'bool'); bindDeco('fHandle', 'handle', 'bool');
+  bindDeco('fDash', 'dash', 'bool');
+  $('fHandle').addEventListener('change', function () { cur.deco.handle.on = this.checked; draw(); genCode(); });
 
   // ---------- 拖拽 ----------
-  var dragIdx = -1;
+  var dragIdx = -1, dragHandle = null, handleNodes = [];
   function cvPos(e) {
     var r = cv.getBoundingClientRect();
     return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
   }
   cv.addEventListener('pointerdown', function (e) {
     var p = cvPos(e), L = layout();
+    // 杯把节点优先（菱形：t1/t2 上下拖，out 左右拖）
+    for (var h = 0; h < handleNodes.length; h++) {
+      if (Math.hypot(p.x - handleNodes[h].x, p.y - handleNodes[h].y) < 14) {
+        dragHandle = handleNodes[h].role; cv.setPointerCapture(e.pointerId); draw(); return;
+      }
+    }
     for (var i = 0; i < NPTS; i++) {
       var hp = ptXY(i / (NPTS - 1), cur.pts[i], L);
       if (Math.hypot(p.x - hp.x, p.y - hp.y) < 14) { dragIdx = i; cv.setPointerCapture(e.pointerId); draw(); return; }
     }
   });
   cv.addEventListener('pointermove', function (e) {
-    if (dragIdx < 0) return;
     var p = cvPos(e), L = layout();
+    if (dragHandle) {
+      var g = L.g, hh = cur.deco.handle;
+      if (dragHandle === 't1' || dragHandle === 't2') {
+        var t = (L.baseY - p.y) / (g.cupH * L.scale);
+        if (dragHandle === 't1') hh.t1 = Math.round(Math.max(hh.t2 + 0.1, Math.min(0.97, t)) * 100) / 100;
+        else hh.t2 = Math.round(Math.max(0.03, Math.min(hh.t1 - 0.1, t)) * 100) / 100;
+      } else {
+        var base = Math.max(profileAt(hh.t1), profileAt(hh.t2));
+        hh.out = Math.round(Math.max(0.15, Math.min(1.3, (p.x - L.cx) / (g.halfW * L.scale) - base)) * 100) / 100;
+      }
+      draw(); genCode(); return;
+    }
+    if (dragIdx < 0) return;
     var w = (p.x - L.cx) / (L.g.halfW * L.scale);
     cur.pts[dragIdx] = Math.round(Math.max(0.05, Math.min(1, w)) * 1000) / 1000;
     draw(); drawSpeed(); genCode();
   });
-  cv.addEventListener('pointerup', function () { dragIdx = -1; draw(); });
+  cv.addEventListener('pointerup', function () { dragIdx = -1; dragHandle = null; draw(); });
 
   // ---------- 列表 ----------
   var TIER_LABELS = ['段位0 · 倒奶', '段位1 · 可乐', '段位2 · 啤酒', '段位3 · 红酒', '段位4 · 白酒', '段位5 · 茶', '段位6 · 温奶'];
