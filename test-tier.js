@@ -67,7 +67,7 @@ assert.strictEqual(game.score, 0, '重开后分数应清零');
 assert.strictEqual(game.drink.name, '牛奶', '重开后第一杯应为牛奶');
 console.log('失败重开回到 0 段倒奶 OK');
 
-// 2. 主界面段位跟随历史最高分（暖奶寿星 500 分）；最高段位解锁全部 22 个杯型
+// 2. 主界面段位跟随历史最高分（暖奶寿星 500 分）；最高段位解锁全部 20 个杯型
 storage = { best: '500' };
 game = new Game(makeEnv(storage));
 assert.strictEqual(game.tierIdx, 6, '历史最高 500 分应显示暖奶寿星');
@@ -78,7 +78,7 @@ for (let i = 0; i < 600; i++) {
   const cup = Cups.randomCupRange(Cups.TIERS[6].cupCount);
   seen.add(cup.name);
 }
-assert.strictEqual(seen.size, 22, '最高段位应解锁全部 22 个杯型，实际：' + seen.size);
+assert.strictEqual(seen.size, 20, '最高段位应解锁全部 20 个杯型，实际：' + seen.size);
 console.log('最高段位杯型覆盖 OK：', seen.size, '个');
 
 // 3. 中间段位杯池不超过解锁数量（段位3 = 前 8 个）

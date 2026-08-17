@@ -65,9 +65,6 @@
     this.lastCup = null;     // 上一杯杯型（避免连续重复）
     this.perfectStreak = 0;  // 连续完美计数（2 连 3 分，3 连起 4 分）
     this.bubb = [];          // 液体内碳酸气泡（可乐/啤酒）
-    this._fx = null;         // 离屏画布（容器液面叠加）
-    this._fxCtx = null;
-    this._fxOk = true;
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
     this.streamX = 0;        // 水流落点 X（首帧倒水前兜底，避免 NaN 粒子）
@@ -79,6 +76,18 @@
 
     this.layoutUI();
     this.bindInput();
+
+    // 调试摆拍姿态（env.pose，仅本地预览）
+    if (env.pose) {
+      this.startGame();
+      this.tierIdx = env.pose.tier;
+      this.newRound();
+      this.angle = 0.42;
+      this.level = 0.45;
+      this.poured = 0.45;
+      this.phase = 'press';
+      this.pressing = true;
+    }
   }
 
   // ---------------- 颜色工具（饮品材质用） ----------------
@@ -407,22 +416,6 @@
     }
   };
 
-  // 离屏画布（容器液面叠加用；不支持的环境返回 null 走回退路径）
-  Game.prototype.fxCtx = function () {
-    if (!this._fxOk) return null;
-    if (!this._fx) {
-      try {
-        if (typeof wx !== 'undefined' && wx.createCanvas) this._fx = wx.createCanvas();
-        else if (typeof document !== 'undefined') this._fx = document.createElement('canvas');
-        else { this._fxOk = false; return null; }
-        this._fxCtx = this._fx.getContext('2d');
-      } catch (e) { this._fxOk = false; this._fx = null; return null; }
-    }
-    if (this._fx.width !== this.W) this._fx.width = this.W;
-    if (this._fx.height !== this.H) this._fx.height = this.H;
-    return this._fxCtx;
-  };
-
   // 水花/气泡的色差色：比液体本身亮一截（浅饮品则向深色端偏移），水花更有层次
   Game.prototype.splashTint = function () {
     var d = this.drink || {};
@@ -584,17 +577,25 @@
 
   Game.prototype.drawCup = function () {
     var ctx = this.ctx, cup = this.cup, z = cup.zones;
+    // 每杯装饰配置（缺省 = 全局默认外观）
+    var deco = cup.deco || {};
+    var wallC = deco.wall || PAL.INK;                       // 杯壁描边色
+    var wallW = deco.wallW != null ? deco.wallW : 4.5;      // 杯壁描边粗细
+    var glassA = deco.glass != null ? deco.glass : 0.45;    // 玻璃体透明度（0 = 无玻璃填充）
+    var dashOn = deco.dash !== false;                       // 合格区分隔虚线
+    var ticks = deco.ticks | 0;                             // 内壁刻度线数量（0 = 无）
+    var handleOn = !!deco.handle;                           // 右侧杯把
 
     // 杯脚（高脚杯）
     if (this.stemH > 0) {
-      ctx.strokeStyle = PAL.INK;
+      ctx.strokeStyle = wallC;
       ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.moveTo(this.cx, this.baseY);
       ctx.lineTo(this.cx, this.baseY + this.stemH);
       ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.strokeStyle = PAL.INK;
+      ctx.strokeStyle = wallC;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.ellipse(this.cx, this.baseY + this.stemH + 5, this.halfW * 0.55, 9, 0, 0, Math.PI * 2);
@@ -605,10 +606,24 @@
     var sprRec = this.cup.sprite && this.assets.cups && this.assets.cups[this.cup.sprite];
     var useSpr = !!(sprRec && sprRec.ready);
 
-    // 玻璃体（精灵杯跳过：瓶身贴图自带质感）
-    if (!useSpr) {
-      this.traceCup(0);
-      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    // 玻璃质感：左侧一条随杯壁弯曲的白色半透高光带（精灵杯跳过：贴图自带质感）
+    if (!useSpr && glassA > 0) {
+      var GN = 24, gi, gt, gw, gy;
+      ctx.beginPath();
+      for (gi = 0; gi <= GN; gi++) {
+        gt = 0.06 + 0.88 * (gi / GN);
+        gw = this.halfW * cup.profile(gt) * 0.80;
+        gy = this.baseY - gt * this.cupH;
+        if (gi === 0) ctx.moveTo(this.cx - gw, gy); else ctx.lineTo(this.cx - gw, gy);
+      }
+      for (gi = GN; gi >= 0; gi--) {
+        gt = 0.06 + 0.88 * (gi / GN);
+        gw = this.halfW * cup.profile(gt) * 0.52;
+        gy = this.baseY - gt * this.cupH;
+        ctx.lineTo(this.cx - gw, gy);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,' + glassA + ')';
       ctx.fill();
     }
 
@@ -719,15 +734,62 @@
     } else {
       // 杯身描边（杯口不封线：开口杯，视觉更轻、方便读刻度）
       this.traceCupWall(0);
-      ctx.strokeStyle = PAL.INK;
-      ctx.lineWidth = 4.5;
+      ctx.strokeStyle = wallC;
+      ctx.lineWidth = wallW;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.stroke();
       ctx.lineCap = 'butt';
+      // 杯底描边加粗（2 倍边线宽，杯子更有压桌感）
+      var bw0 = this.halfW * cup.profile(0);
+      ctx.beginPath();
+      ctx.moveTo(this.cx - bw0, this.baseY);
+      ctx.lineTo(this.cx + bw0, this.baseY);
+      ctx.lineWidth = wallW * 2;
+      ctx.stroke();
+    }
+
+    // 杯把（右侧耳形把手；对象形式可自定义附着位置 t1/t2 与外扩幅度 out）
+    if (handleOn && !useSpr) {
+      var hcfg = typeof deco.handle === 'object' && deco.handle ? deco.handle : {};
+      var ht1 = hcfg.t1 != null ? hcfg.t1 : 0.82;   // 上附着点（杯高比例）
+      var ht2 = hcfg.t2 != null ? hcfg.t2 : 0.45;   // 下附着点
+      var hOut = this.halfW * (hcfg.out != null ? hcfg.out : 0.62); // 外扩幅度
+      var hw1 = this.halfW * cup.profile(ht1), hw2 = this.halfW * cup.profile(ht2);
+      var hy1 = this.baseY - ht1 * this.cupH, hy2 = this.baseY - ht2 * this.cupH;
+      ctx.beginPath();
+      ctx.moveTo(this.cx + hw1 - 2, hy1);
+      ctx.bezierCurveTo(this.cx + hw1 + hOut, hy1, this.cx + hw2 + hOut, hy2, this.cx + hw2 - 2, hy2);
+      ctx.bezierCurveTo(this.cx + hw2 + hOut * 0.45, hy2 + 8, this.cx + hw1 + hOut * 0.45, hy1 - 8, this.cx + hw1 - 2, hy1);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fill();
+      ctx.strokeStyle = wallC;
+      ctx.lineWidth = Math.max(3, wallW - 1);
+      ctx.stroke();
+    }
+
+    // 内壁刻度线（右侧内壁，均匀分布，精灵杯贴图自带刻度故跳过）
+    if (ticks > 0 && !useSpr) {
+      ctx.strokeStyle = wallC;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 2;
+      for (var tk = 1; tk <= ticks; tk++) {
+        var tt = tk / (ticks + 1);
+        var tw = this.halfW * cup.profile(tt) - 3;
+        if (tw < 8) continue;
+        var ty = this.baseY - tt * this.cupH;
+        var tl = Math.max(4, Math.min(14, tw * 0.25));
+        ctx.beginPath();
+        ctx.moveTo(this.cx + tw, ty);
+        ctx.lineTo(this.cx + tw - tl, ty);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
 
     // 区域分隔虚线提示（仅合格区外沿；黄绿之间不画线，视觉更干净）
+    if (dashOn) {
     ctx.save();
     ctx.setLineDash([6, 6]);
     ctx.strokeStyle = 'rgba(43,42,38,0.30)';
@@ -739,6 +801,7 @@
       ctx.beginPath(); ctx.moveTo(this.cx - wAt, yy); ctx.lineTo(this.cx + wAt, yy); ctx.stroke();
     }
     ctx.restore();
+    }
   };
 
   Game.prototype.drawBucket = function () {
@@ -749,40 +812,11 @@
     var rec = this.assets.containers && this.assets.containers[this.containerIdx];
     if (this.containerCfg && rec && rec.ready) {
       var cfg = this.containerCfg;
-      var theta = cfg.restTilt + this.angle;
+      ctx.save();
+      ctx.translate(this.spout.x + (cfg.pivotDx || 0) * this.W, this.spout.y + (cfg.pivotDy || 0) * this.H);
+      ctx.rotate(cfg.restTilt + this.angle);
       var dh0 = bh * 2.2 * (cfg.scale || 1);
       var dw0 = dh0 * (rec.img.width / rec.img.height);
-      var pvx = this.spout.x + (cfg.pivotDx || 0) * this.W;
-      var pvy = this.spout.y + (cfg.pivotDy || 0) * this.H;
-      // 仅可乐/啤酒/红酒：离屏合成瓶内液面（贴图样式不变，source-in 裁进瓶身剪影）
-      var LEVEL_TIERS = { 1: 1, 2: 1, 3: 1 };
-      var fc = LEVEL_TIERS[this.containerIdx] ? this.fxCtx() : null;
-      if (fc) {
-        fc.clearRect(0, 0, this.W, this.H);
-        fc.save();
-        fc.translate(pvx, pvy);
-        fc.rotate(theta);
-        fc.drawImage(rec.img, -dw0 * cfg.anchor.x, -dh0 * cfg.anchor.y, dw0, dh0);
-        // 瓶内腔竖直范围（贴图顶 6% / 底 3% 留白）；液面随本回合倒出量下降
-        var inTop = -dh0 * cfg.anchor.y + dh0 * 0.06;
-        var inBot = dh0 * (1 - cfg.anchor.y) - dh0 * 0.03;
-        var fill = Math.max(0.3, 0.92 - this.poured * 0.6);
-        fc.translate(dw0 * (0.5 - cfg.anchor.x), inBot - fill * (inBot - inTop));
-        fc.rotate(-theta); // 液面回到屏幕水平
-        fc.globalCompositeOperation = 'source-in';
-        fc.globalAlpha = 0.38 * (this.drink.alpha != null ? this.drink.alpha : 0.9);
-        fc.fillStyle = this.drink.color;
-        fc.fillRect(-this.W, 0, this.W * 2, this.H * 2);
-        fc.globalAlpha = 0.95;
-        fc.fillStyle = lumOf(this.drink.color) < 0.5 ? '#FFFDF5' : '#2B2A26'; // 深瓶白线，浅瓶黑线
-        fc.fillRect(-this.W, -1.6, this.W * 2, 3.2);
-        fc.restore();
-        ctx.drawImage(this._fx, 0, 0, this.W, this.H);
-        return;
-      }
-      ctx.save();
-      ctx.translate(pvx, pvy);
-      ctx.rotate(theta);
       ctx.drawImage(rec.img, -dw0 * cfg.anchor.x, -dh0 * cfg.anchor.y, dw0, dh0);
       ctx.restore();
       return;

@@ -33,7 +33,7 @@
   // zones: q=合格区[lo,hi]（淡黄）, p=完美区[lo,hi]（淡绿），其余为不合格区
   // 粗细变化越大，水位上升速度随液面高度变化越剧烈（df/dt ∝ 1/宽度²）
   var CUPS = [
-    // ── 段位0 · 倒奶（10 个杯型，低难度：杯型规则、合格区宽，无 S 曲线）──
+    // ── 段位0 · 倒奶（10 个杯型）──
     {
       name: '直筒奶瓶', hint: '八分满', aspect: 1.63, stem: false, size: 0.95,
       sprite: 'cup-milk', sprHFrac: 0.857, sprBFrac: 0.965, // 精灵杯：蓝边镂空奶瓶，刻度线留在瓶壁上
@@ -41,166 +41,122 @@
       zones: { q: [0.70, 0.94] }
     },
     {
-      name: '胖牛奶杯', hint: '八分满', aspect: 1.1, stem: false, size: 1.0,
-      profile: tableProfile([
-        0.66, 0.75, 0.78, 0.78, 0.78, 0.78,
-        0.78, 0.78, 0.78, 0.78, 0.78, 0.78,
-        0.78, 0.78, 0.78, 0.78, 0.78]),
-      zones: { q: [0.66, 0.94] }
+      name: '功夫茶杯', hint: '七分满', aspect: 1.1, stem: false, size: 0.85,
+      profile: function (t) { return 0.55 + 0.30 * t; },
+      zones: { q: [0.58, 0.84] }
     },
     {
-      name: '小圆奶杯', hint: '七分满', aspect: 0.8, stem: false, size: 0.9,
-      profile: tableProfile([
-        0.34, 0.44, 0.53, 0.61, 0.68, 0.74,
-        0.79, 0.83, 0.86, 0.89, 0.91, 0.92,
-        0.93, 0.94, 0.94, 0.95, 0.95]),
-      zones: { q: [0.58, 0.88] }
+      name: '小茶碗', hint: '七分满', aspect: 0.55, stem: false, size: 0.72,
+      profile: function (t) { return 0.30 + 0.65 * Math.sin(t * Math.PI / 2); },
+      zones: { q: [0.56, 0.82] } // 底窄口阔：起步快、越倒越慢
     },
     {
-      name: '方底奶樽', hint: '八分满', aspect: 1.3, stem: false, size: 1.0,
-      profile: tableProfile([
-        0.62, 0.64, 0.66, 0.68, 0.7, 0.72,
-        0.73, 0.75, 0.76, 0.78, 0.79, 0.8,
-        0.81, 0.82, 0.83, 0.84, 0.85]),
-      zones: { q: [0.64, 0.92] }
+      name: '白酒小盅', hint: '满杯为宜', aspect: 1.0, stem: false, size: 0.72,
+      profile: function (t) { return 0.58; },
+      zones: { q: [0.74, 0.98] }
     },
     {
-      name: '矮胖马克杯', hint: '八分满', aspect: 1.0, stem: false, size: 1.05,
-      deco: { handle: true },
-      profile: tableProfile([
-        0.72, 0.8, 0.84, 0.85, 0.85, 0.85,
-        0.85, 0.85, 0.85, 0.85, 0.85, 0.85,
-        0.85, 0.85, 0.85, 0.85, 0.85]),
-      zones: { q: [0.66, 0.94] }
+      name: '收口杯', hint: '八分满', aspect: 1.2, stem: false, size: 0.92,
+      profile: function (t) { return 0.88 - 0.28 * t; },
+      zones: { q: [0.66, 0.90] } // 底阔口窄：越接近目标越快，容易冲过
     },
     {
-      name: '圆肚小罐', hint: '半罐正好', aspect: 1.0, stem: false, size: 1.0,
-      profile: tableProfile([
-        0.42, 0.52, 0.62, 0.7, 0.76, 0.8,
-        0.82, 0.82, 0.8, 0.77, 0.73, 0.69,
-        0.65, 0.61, 0.58, 0.56, 0.55]),
-      zones: { q: [0.52, 0.82] } // 单鼓肚收口：中段慢、近目标变快
+      name: '宽口汤碗', hint: '七分满', aspect: 0.5, stem: false, size: 1.20,
+      profile: function (t) { return 0.42 + 0.58 * Math.pow(Math.sin(t * Math.PI / 2), 0.7); },
+      zones: { q: [0.54, 0.78] } // 极宽浅碗：液面爬得极慢，耐心局
     },
     {
-      name: '直筒刻度杯', hint: '八分满', aspect: 1.5, stem: false, size: 1.0,
-      deco: { ticks: 5 },
-      profile: tableProfile([
-        0.62, 0.7, 0.73, 0.73, 0.73, 0.73,
-        0.73, 0.73, 0.73, 0.73, 0.73, 0.73,
-        0.73, 0.73, 0.73, 0.73, 0.73]),
-      zones: { q: [0.66, 0.92] }
+      name: 'S曲线杯', hint: '过波峰', aspect: 1.6, stem: false, size: 1.0,
+      profile: function (t) { return 0.58 + 0.30 * Math.sin(2 * Math.PI * t); },
+      zones: { q: [0.58, 0.82] } // S 型杯壁：下鼓-中收-上张，速度两快两慢
     },
     {
-      name: '敞口早餐杯', hint: '七分满', aspect: 0.9, stem: false, size: 1.0,
-      profile: tableProfile([
-        0.5, 0.54, 0.58, 0.62, 0.66, 0.7,
-        0.73, 0.77, 0.8, 0.84, 0.87, 0.9,
-        0.93, 0.96, 0.98, 0.99, 1.0]),
-      zones: { q: [0.60, 0.90] }
+      name: '波浪壁杯', hint: '八分满', aspect: 1.3, stem: false, size: 1.12,
+      profile: function (t) { return 0.62 + 0.16 * Math.sin(3 * Math.PI * t); },
+      zones: { q: [0.62, 0.86] } // 三段波浪：节奏细碎
     },
     {
-      name: '小高脚奶杯', hint: '七分满', aspect: 1.2, stem: true, size: 1.0,
-      profile: tableProfile([
-        0.3, 0.4, 0.49, 0.57, 0.64, 0.69,
-        0.73, 0.76, 0.78, 0.79, 0.79, 0.78,
-        0.77, 0.75, 0.73, 0.71, 0.7]),
-      zones: { q: [0.60, 0.90] }
+      name: '折纸棱杯', hint: '八分满', aspect: 1.4, stem: false, size: 1.0,
+      profile: function (t) {
+        if (t < 0.33) return 0.78 - 0.30 * (t / 0.33);
+        if (t < 0.66) return 0.48 + 0.32 * ((t - 0.33) / 0.33);
+        return 0.80 - 0.30 * ((t - 0.66) / 0.34);
+      },
+      zones: { q: [0.60, 0.84] } // 折线棱角：每过一条棱速度突变
     },
     {
-      name: '瘦高奶瓶', hint: '九分满', aspect: 2.0, stem: false, size: 1.1,
-      profile: tableProfile([
-        0.34, 0.38, 0.4, 0.4, 0.4, 0.4,
-        0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
-        0.4, 0.4, 0.4, 0.4, 0.4]),
-      zones: { q: [0.70, 0.94] }
+      name: '细高试管杯', hint: '九分满', aspect: 2.8, stem: false, size: 1.35,
+      profile: function (t) { return t < 0.06 ? 0.24 + 0.10 * (t / 0.06) : 0.34; },
+      zones: { q: [0.72, 0.96] } // 极细直管：液面蹿得快
     },
     // ── 段位1 · 可乐少年 +2 ──
     {
-      name: '可乐收腰杯', hint: '过腰线', aspect: 1.6, stem: false, size: 1.0,
-      profile: tableProfile([
-        0.6, 0.64, 0.67, 0.69, 0.7, 0.7,
-        0.69, 0.67, 0.64, 0.61, 0.59, 0.58,
-        0.59, 0.61, 0.64, 0.67, 0.7]),
-      zones: { q: [0.60, 0.88] } // 单收腰：过腰时加速（单向变化，非 S 曲线）
+      name: '可乐高挑杯', hint: '八分满', aspect: 1.7, stem: false, size: 1.05,
+      profile: function (t) { return 0.50 + 0.18 * Math.sin(Math.PI * clamp01(t * 1.05)) + 0.06 * t; },
+      zones: { q: [0.64, 0.88] } // 中段微鼓：过半后先慢后快
     },
     {
-      name: '竖纹汽水罐', hint: '九分满', aspect: 2.2, stem: false, size: 1.2,
-      deco: { ticks: 8 },
-      profile: tableProfile([
-        0.4, 0.44, 0.46, 0.46, 0.46, 0.46,
-        0.46, 0.46, 0.46, 0.46, 0.46, 0.46,
-        0.46, 0.46, 0.46, 0.46, 0.46]),
-      zones: { q: [0.70, 0.94] }
+      name: '反S细腰杯', hint: '过半腰', aspect: 1.85, stem: false, size: 0.98,
+      profile: function (t) { return 0.58 - 0.28 * Math.sin(2 * Math.PI * t); },
+      zones: { q: [0.56, 0.80] } // 反向 S：下收-中鼓-上收，与 S 杯手感相反
     },
     // ── 段位2 · 啤酒青年 +2 ──
     {
-      name: '扎啤马克杯', hint: '九分满', aspect: 1.4, stem: false, size: 1.15,
-      deco: { handle: true },
-      profile: tableProfile([
-        0.66, 0.68, 0.7, 0.72, 0.73, 0.75,
-        0.76, 0.78, 0.79, 0.8, 0.81, 0.82,
-        0.83, 0.84, 0.85, 0.86, 0.87]),
-      zones: { q: [0.70, 0.96] }
+      name: '扎啤杯', hint: '九分满', aspect: 1.5, stem: false, size: 1.1,
+      profile: function (t) { return 0.58 + 0.14 * t - 0.05 * Math.sin(2 * Math.PI * t); },
+      zones: { q: [0.72, 0.96] } // 带轻微波浪壁：速度有细碎起伏
     },
     {
-      name: '皮尔森杯', hint: '八分满', aspect: 1.9, stem: false, size: 1.1,
-      profile: tableProfile([
-        0.3, 0.33, 0.36, 0.4, 0.44, 0.48,
-        0.52, 0.56, 0.6, 0.64, 0.68, 0.72,
-        0.76, 0.8, 0.83, 0.86, 0.88]),
-      zones: { q: [0.68, 0.92] } // 细底阔口：起步蹿得快，后段放缓
+      name: '大肚矮坛', hint: '过半', aspect: 0.78, stem: false, size: 1.30,
+      profile: function (t) { return 0.40 + 0.58 * gauss(t, 0.38, 0.26); },
+      zones: { q: [0.44, 0.68] } // 矮胖大肚：中段极慢，易早停
     },
     // ── 段位3 · 红酒新秀 +2 ──
-    {
-      name: '波尔多酒杯', hint: '1/3 杯', aspect: 1.5, stem: true, size: 1.08,
-      profile: tableProfile([
-        0.2, 0.3, 0.42, 0.53, 0.63, 0.71,
-        0.77, 0.81, 0.83, 0.83, 0.81, 0.78,
-        0.74, 0.69, 0.64, 0.59, 0.55]),
-      zones: { q: [0.28, 0.52] } // 目标区低：起步冲得猛，考验早停
+        {
+    name: '红葡萄酒杯', hint: '1/3 杯', aspect: 1.5, stem: true, size: 1.08,
+    profile: tableProfile([
+    0.16, 0.399, 0.543, 0.656, 0.747, 0.816, 
+    0.865, 0.893, 0.9, 0.886, 0.852, 0.797, 
+    0.721, 0.623, 0.502, 0.344, 0.382]),
+    zones: { q: [0.22, 0.46] }
     },
     {
-      name: '勃艮第胖杯', hint: '1/3 杯', aspect: 1.2, stem: true, size: 1.15,
-      profile: tableProfile([
-        0.24, 0.36, 0.5, 0.63, 0.74, 0.83,
-        0.89, 0.92, 0.92, 0.89, 0.84, 0.78,
-        0.71, 0.65, 0.59, 0.54, 0.5]),
-      zones: { q: [0.26, 0.50] } // 大肚低目标：超慢爬升
+      name: '高脚浅碟杯', hint: '七分满', aspect: 0.9, stem: true, size: 1.0,
+      profile: function (t) { return 0.30 + 0.62 * Math.pow(Math.sin(t * Math.PI / 2), 0.55); },
+      zones: { q: [0.50, 0.74] } // 宽浅碟配高脚：超慢爬升
     },
     // ── 段位4 · 白酒骨干 +2 ──
     {
-      name: '白酒分酒盅', hint: '满杯为宜', aspect: 0.9, stem: false, size: 0.7,
-      profile: tableProfile([
-        0.36, 0.44, 0.51, 0.57, 0.62, 0.66,
-        0.69, 0.72, 0.74, 0.76, 0.77, 0.78,
-        0.79, 0.79, 0.8, 0.8, 0.8]),
-      zones: { q: [0.72, 0.96] } // 小盅目标贴顶：余量极小
+      name: '笛型香槟杯', hint: '3/4 杯', aspect: 2.2, stem: true, size: 1.25,
+      profile: function (t) { return 0.27 + 0.12 * t; },
+      zones: { q: [0.62, 0.88] } // 细长杯：整体偏快，余量小
     },
     {
-      name: '细颈酒壶杯', hint: '过肚一半', aspect: 1.7, stem: false, size: 1.06,
-      profile: tableProfile([
-        0.3, 0.42, 0.54, 0.64, 0.72, 0.78,
-        0.81, 0.82, 0.8, 0.75, 0.68, 0.6,
-        0.51, 0.43, 0.36, 0.32, 0.3]),
-      zones: { q: [0.42, 0.68] } // 低肚细颈：过颈后猛地加速
+      name: '细颈胆瓶', hint: '过肚一半', aspect: 1.9, stem: false, size: 1.06,
+      profile: function (t) { return 0.24 + 0.70 * gauss(t, 0.30, 0.22); },
+      zones: { q: [0.40, 0.64] } // 低肚细颈：过颈后猛地加速
     },
     // ── 段位5 · 茶道宗师 +2 ──
     {
-      name: '盖碗茶杯', hint: '七分满', aspect: 0.55, stem: false, size: 1.1,
-      profile: tableProfile([
-        0.3, 0.38, 0.46, 0.54, 0.61, 0.68,
-        0.74, 0.79, 0.83, 0.87, 0.9, 0.92,
-        0.94, 0.95, 0.96, 0.97, 0.97]),
-      zones: { q: [0.55, 0.80] } // 宽浅盖碗：液面爬得极慢，耐心局
+      name: '收腰美人杯', hint: '过半腰', aspect: 1.9, stem: false, size: 1.06,
+      profile: function (t) { return 0.40 + 0.36 * Math.abs(Math.cos(Math.PI * t)); },
+      zones: { q: [0.50, 0.76] } // 中部收腰：过腰时突然加速
     },
     {
-      name: '竹节茶杯', hint: '八分满', aspect: 1.7, stem: false, size: 1.0,
-      deco: { ticks: 3 },
-      profile: tableProfile([
-        0.44, 0.47, 0.49, 0.51, 0.53, 0.55,
-        0.56, 0.58, 0.59, 0.6, 0.61, 0.62,
-        0.63, 0.63, 0.64, 0.64, 0.65]),
-      zones: { q: [0.66, 0.90] }
+      name: '火箭细杯', hint: '满杯为宜', aspect: 3.0, stem: false, size: 0.65,
+      profile: function (t) { return 0.24 + 0.10 * t; },
+      zones: { q: [0.74, 0.98] } // 全库最细：手一抖就溢出
+    },
+    // ── 段位6 · 暖奶寿星 +2 ──
+    {
+      name: '葫芦杯', hint: '适量', aspect: 1.7, stem: false, size: 1.0,
+      profile: function (t) { return 0.14 + 0.66 * gauss(t, 0.26, 0.20) + 0.46 * gauss(t, 0.80, 0.15); },
+      zones: { q: [0.40, 0.68] } // 双肚异型：两段慢速平台夹着快喉
+    },
+    {
+      name: '宽口巨缸', hint: '八分满', aspect: 0.55, stem: false, size: 1.35,
+      profile: function (t) { return t < 0.07 ? 0.80 + 0.15 * (t / 0.07) : 0.95; },
+      zones: { q: [0.68, 0.92] } // 全库最宽：倒半天不见涨
     }
   ];
 
@@ -291,7 +247,7 @@
 
   // ---------- 段位体系 · 倒水人生 ----------
   // 人生阶段 × 饮品：小孩→上学→毕业→职场新人→中坚→老人→寿星（喝奶补钙，人生闭环）
-  // cupCount = 该段位解锁的杯型数量（10 + 2 × 段位索引，共 20 种杯型，超出自动封顶）
+  // cupCount = 该段位解锁的杯型数量（10 + 2 × 段位索引，共 22 种杯型）
   var TIERS = [
     { key: 'milk',     name: '奶瓶萌新', stage: '小孩',     drinkName: '牛奶', score: 0,   cupCount: 10, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
       line: '人生的第一杯，要稳稳的。', wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。', color: '#FFFFFF', deep: '#E3D5B5', foam: false },
