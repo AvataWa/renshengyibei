@@ -65,9 +65,6 @@
     this.lastCup = null;     // 上一杯杯型（避免连续重复）
     this.perfectStreak = 0;  // 连续完美计数（2 连 3 分，3 连起 4 分）
     this.bubb = [];          // 液体内碳酸气泡（可乐/啤酒）
-    this._fx = null;         // 离屏画布（容器液面叠加）
-    this._fxCtx = null;
-    this._fxOk = true;
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
     this.streamX = 0;        // 水流落点 X（首帧倒水前兜底，避免 NaN 粒子）
@@ -419,27 +416,6 @@
     }
   };
 
-  // 离屏画布（容器液面叠加用；不支持的环境返回 null 走回退路径）
-  Game.prototype.fxCtx = function () {
-    if (!this._fxOk) return null;
-    if (!this._fx) {
-      try {
-        if (typeof wx !== 'undefined' && wx.createCanvas) this._fx = wx.createCanvas();
-        else if (typeof document !== 'undefined') this._fx = document.createElement('canvas');
-        else { this._fxOk = false; return null; }
-        this._fxCtx = this._fx.getContext('2d');
-      } catch (e) { this._fxOk = false; this._fx = null; return null; }
-    }
-    var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-    var fw = Math.round(this.W * dpr), fh = Math.round(this.H * dpr);
-    if (this._fx.width !== fw) this._fx.width = fw;
-    if (this._fx.height !== fh) this._fx.height = fh;
-    this._fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this._fxCtx.globalCompositeOperation = 'source-over';
-    this._fxCtx.globalAlpha = 1;
-    return this._fxCtx;
-  };
-
   // 水花/气泡的色差色：比液体本身亮一截（浅饮品则向深色端偏移），水花更有层次
   Game.prototype.splashTint = function () {
     var d = this.drink || {};
@@ -766,40 +742,11 @@
     var rec = this.assets.containers && this.assets.containers[this.containerIdx];
     if (this.containerCfg && rec && rec.ready) {
       var cfg = this.containerCfg;
-      var theta = cfg.restTilt + this.angle;
+      ctx.save();
+      ctx.translate(this.spout.x + (cfg.pivotDx || 0) * this.W, this.spout.y + (cfg.pivotDy || 0) * this.H);
+      ctx.rotate(cfg.restTilt + this.angle);
       var dh0 = bh * 2.2 * (cfg.scale || 1);
       var dw0 = dh0 * (rec.img.width / rec.img.height);
-      var pvx = this.spout.x + (cfg.pivotDx || 0) * this.W;
-      var pvy = this.spout.y + (cfg.pivotDy || 0) * this.H;
-      // 仅可乐/啤酒/红酒：离屏合成瓶内液面（贴图样式不变，source-in 裁进瓶身剪影）
-      var LEVEL_TIERS = { 1: 1, 2: 1, 3: 1 };
-      var fc = LEVEL_TIERS[this.containerIdx] ? this.fxCtx() : null;
-      if (fc) {
-        fc.clearRect(0, 0, this.W, this.H);
-        fc.save();
-        fc.translate(pvx, pvy);
-        fc.rotate(theta);
-        fc.drawImage(rec.img, -dw0 * cfg.anchor.x, -dh0 * cfg.anchor.y, dw0, dh0);
-        // 瓶内腔竖直范围（贴图顶 6% / 底 3% 留白）；液面随本回合倒出量下降
-        var inTop = -dh0 * cfg.anchor.y + dh0 * 0.06;
-        var inBot = dh0 * (1 - cfg.anchor.y) - dh0 * 0.03;
-        var fill = Math.max(0.3, 0.85 - this.poured * 0.55);
-        fc.translate(dw0 * (0.5 - cfg.anchor.x), inBot - fill * (inBot - inTop));
-        fc.rotate(-theta); // 液面回到屏幕水平
-        fc.globalCompositeOperation = 'source-atop'; // 叠加在瓶身之上并裁进剪影（不能 source-in，会抹掉瓶身）
-        fc.globalAlpha = 0.38 * (this.drink.alpha != null ? this.drink.alpha : 0.9);
-        fc.fillStyle = this.drink.color;
-        fc.fillRect(-this.W, 0, this.W * 2, this.H * 2);
-        fc.globalAlpha = 0.95;
-        fc.fillStyle = lumOf(this.drink.color) < 0.5 ? '#FFFDF5' : '#2B2A26'; // 深瓶白线，浅瓶黑线
-        fc.fillRect(-this.W, -1.6, this.W * 2, 3.2);
-        fc.restore();
-        ctx.drawImage(this._fx, 0, 0, this.W, this.H);
-        return;
-      }
-      ctx.save();
-      ctx.translate(pvx, pvy);
-      ctx.rotate(theta);
       ctx.drawImage(rec.img, -dw0 * cfg.anchor.x, -dh0 * cfg.anchor.y, dw0, dh0);
       ctx.restore();
       return;
