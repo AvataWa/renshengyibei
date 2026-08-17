@@ -577,17 +577,25 @@
 
   Game.prototype.drawCup = function () {
     var ctx = this.ctx, cup = this.cup, z = cup.zones;
+    // 每杯装饰配置（缺省 = 全局默认外观）
+    var deco = cup.deco || {};
+    var wallC = deco.wall || PAL.INK;                       // 杯壁描边色
+    var wallW = deco.wallW != null ? deco.wallW : 4.5;      // 杯壁描边粗细
+    var glassA = deco.glass != null ? deco.glass : 0.45;    // 玻璃体透明度（0 = 无玻璃填充）
+    var dashOn = deco.dash !== false;                       // 合格区分隔虚线
+    var ticks = deco.ticks | 0;                             // 内壁刻度线数量（0 = 无）
+    var handleOn = !!deco.handle;                           // 右侧杯把
 
     // 杯脚（高脚杯）
     if (this.stemH > 0) {
-      ctx.strokeStyle = PAL.INK;
+      ctx.strokeStyle = wallC;
       ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.moveTo(this.cx, this.baseY);
       ctx.lineTo(this.cx, this.baseY + this.stemH);
       ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.strokeStyle = PAL.INK;
+      ctx.strokeStyle = wallC;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.ellipse(this.cx, this.baseY + this.stemH + 5, this.halfW * 0.55, 9, 0, 0, Math.PI * 2);
@@ -599,9 +607,9 @@
     var useSpr = !!(sprRec && sprRec.ready);
 
     // 玻璃体（精灵杯跳过：瓶身贴图自带质感）
-    if (!useSpr) {
+    if (!useSpr && glassA > 0) {
       this.traceCup(0);
-      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillStyle = 'rgba(255,255,255,' + glassA + ')';
       ctx.fill();
     }
 
@@ -712,15 +720,53 @@
     } else {
       // 杯身描边（杯口不封线：开口杯，视觉更轻、方便读刻度）
       this.traceCupWall(0);
-      ctx.strokeStyle = PAL.INK;
-      ctx.lineWidth = 4.5;
+      ctx.strokeStyle = wallC;
+      ctx.lineWidth = wallW;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.stroke();
       ctx.lineCap = 'butt';
     }
 
+    // 杯把（右侧耳形把手，扎啤杯/马克杯感）
+    if (handleOn && !useSpr) {
+      var ht1 = 0.82, ht2 = 0.45;
+      var hw1 = this.halfW * cup.profile(ht1), hw2 = this.halfW * cup.profile(ht2);
+      var hy1 = this.baseY - ht1 * this.cupH, hy2 = this.baseY - ht2 * this.cupH;
+      var hOut = this.halfW * 0.62;
+      ctx.beginPath();
+      ctx.moveTo(this.cx + hw1 - 2, hy1);
+      ctx.bezierCurveTo(this.cx + hw1 + hOut, hy1, this.cx + hw2 + hOut, hy2, this.cx + hw2 - 2, hy2);
+      ctx.bezierCurveTo(this.cx + hw2 + hOut * 0.45, hy2 + 8, this.cx + hw1 + hOut * 0.45, hy1 - 8, this.cx + hw1 - 2, hy1);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fill();
+      ctx.strokeStyle = wallC;
+      ctx.lineWidth = Math.max(3, wallW - 1);
+      ctx.stroke();
+    }
+
+    // 内壁刻度线（右侧内壁，均匀分布，精灵杯贴图自带刻度故跳过）
+    if (ticks > 0 && !useSpr) {
+      ctx.strokeStyle = wallC;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 2;
+      for (var tk = 1; tk <= ticks; tk++) {
+        var tt = tk / (ticks + 1);
+        var tw = this.halfW * cup.profile(tt) - 3;
+        if (tw < 8) continue;
+        var ty = this.baseY - tt * this.cupH;
+        var tl = Math.max(4, Math.min(14, tw * 0.25));
+        ctx.beginPath();
+        ctx.moveTo(this.cx + tw, ty);
+        ctx.lineTo(this.cx + tw - tl, ty);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     // 区域分隔虚线提示（仅合格区外沿；黄绿之间不画线，视觉更干净）
+    if (dashOn) {
     ctx.save();
     ctx.setLineDash([6, 6]);
     ctx.strokeStyle = 'rgba(43,42,38,0.30)';
@@ -732,6 +778,7 @@
       ctx.beginPath(); ctx.moveTo(this.cx - wAt, yy); ctx.lineTo(this.cx + wAt, yy); ctx.stroke();
     }
     ctx.restore();
+    }
   };
 
   Game.prototype.drawBucket = function () {

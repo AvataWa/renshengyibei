@@ -71,6 +71,13 @@
   <h3>合格区（完美区自动取顶部 1/3）</h3>
   <div class="row"><label>下限</label><input type="range" id="fQlo" min="0.1" max="0.9" step="0.01"><span class="val" id="vQlo"></span></div>
   <div class="row"><label>上限</label><input type="range" id="fQhi" min="0.3" max="1.0" step="0.01"><span class="val" id="vQhi"></span></div>
+  <h3>装饰</h3>
+  <div class="row"><label>描边颜色</label><input type="color" id="fWall" style="width:48px;height:28px;border:1px solid #ddd6c4;border-radius:6px;background:none;padding:2px"></div>
+  <div class="row"><label>描边粗细</label><input type="range" id="fWallW" min="2" max="8" step="0.5"><span class="val" id="vWallW"></span></div>
+  <div class="row"><label>玻璃质感</label><input type="range" id="fGlass" min="0" max="0.8" step="0.05"><span class="val" id="vGlass"></span></div>
+  <div class="row"><label>刻度线</label><input type="range" id="fTicks" min="0" max="8" step="1"><span class="val" id="vTicks"></span></div>
+  <div class="row"><label>分隔虚线</label><input type="checkbox" id="fDash" checked></div>
+  <div class="row"><label>杯把</label><input type="checkbox" id="fHandle"></div>
   <h3>数据</h3>
   <div id="stats"></div>
   <h3>水位上升节奏（越高峰 = 涨得越快越危险）</h3>
@@ -90,6 +97,7 @@
   var NPTS = 17;               // 控制点数量（t = 0, 1/16, ..., 1）
   var GAME_H = 800, GAME_W = 450, MOUTH_MIN = 18; // 与 game.js 一致的参考几何
   var PASS_FIELDS = ['sprite', 'sprHFrac', 'sprBFrac']; // 保存时原样保留的额外字段
+  var DECO_DEF = { wall: '#2B2A26', wallW: 4.5, glass: 0.45, dash: true, ticks: 0, handle: false }; // 与 game.js 默认值一致
 
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
   var speedCv = document.getElementById('speedCv'), sctx = speedCv.getContext('2d');
@@ -112,13 +120,15 @@
     var cup = Cups.CUPS[index];
     var pass = {};
     PASS_FIELDS.forEach(function (f) { if (cup[f] !== undefined) pass[f] = cup[f]; });
+    var deco = {};
+    for (var k in DECO_DEF) deco[k] = (cup.deco && cup.deco[k] !== undefined) ? cup.deco[k] : DECO_DEF[k];
     cur = {
       index: index,
       name: cup.name, hint: cup.hint,
       aspect: cup.aspect, size: cup.size || 1, stem: !!cup.stem,
       qlo: cup.zones.q[0], qhi: cup.zones.q[1],
       pts: sampleProfile(cup.profile),
-      pass: pass
+      pass: pass, deco: deco
     };
     snapshot = JSON.parse(JSON.stringify(cur));
     syncPanel(); draw(); drawSpeed(); genCode();
@@ -128,8 +138,10 @@
   function newCup() {
     var pts = [];
     for (var i = 0; i < NPTS; i++) pts.push(i === 0 ? 0.6 : 0.7);
+    var deco = {};
+    for (var k in DECO_DEF) deco[k] = DECO_DEF[k];
     cur = { index: null, name: '新杯型', hint: '八分满', aspect: 1.4, size: 1.0,
-            stem: false, qlo: 0.62, qhi: 0.86, pts: pts, pass: {} };
+            stem: false, qlo: 0.62, qhi: 0.86, pts: pts, pass: {}, deco: deco };
     snapshot = JSON.parse(JSON.stringify(cur));
     syncPanel(); draw(); drawSpeed(); genCode(); renderList();
   }
@@ -191,6 +203,13 @@
     var L = layout(), g = L.g;
     ctx.clearRect(0, 0, cv.width, cv.height);
 
+    // 玻璃体（在色带之下，与游戏绘制顺序一致）
+    if (cur.deco.glass > 0) {
+      cupPath(L, 0);
+      ctx.fillStyle = 'rgba(255,255,255,' + cur.deco.glass + ')';
+      ctx.fill();
+    }
+
     // 合格区 / 完美区色带（按 cups.js 规则：绿带贴合格带顶、宽 1/3）
     var qw = Math.max(cur.qhi - cur.qlo, 0.24);
     var qlo = Math.max(0.15, cur.qhi - qw), pw = (cur.qhi - qlo) / 3, plo = cur.qhi - pw;
@@ -203,7 +222,8 @@
 
     // 杯壁
     cupPath(L, 0);
-    ctx.strokeStyle = '#4a463c'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = cur.deco.wall; ctx.lineWidth = cur.deco.wallW * L.scale * 1.6;
+    ctx.lineJoin = 'round'; ctx.stroke();
     // 杯底封口线
     var pb = ptXY(0, profileAt(0), L), pb2 = ptXY(0, -profileAt(0), L);
     ctx.beginPath(); ctx.moveTo(pb2.x, pb2.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
@@ -214,6 +234,46 @@
       ctx.beginPath(); ctx.moveTo(L.cx, L.baseY); ctx.lineTo(L.cx, footY); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(L.cx - g.halfW * 0.45 * L.scale, footY);
       ctx.lineTo(L.cx + g.halfW * 0.45 * L.scale, footY); ctx.stroke();
+    }
+
+    // 杯把
+    if (cur.deco.handle) {
+      var ht1 = 0.82, ht2 = 0.45;
+      var hw1 = profileAt(ht1) * g.halfW * L.scale, hw2 = profileAt(ht2) * g.halfW * L.scale;
+      var hy1 = L.baseY - ht1 * g.cupH * L.scale, hy2 = L.baseY - ht2 * g.cupH * L.scale;
+      var hOut = g.halfW * 0.62 * L.scale;
+      ctx.beginPath();
+      ctx.moveTo(L.cx + hw1 - 2, hy1);
+      ctx.bezierCurveTo(L.cx + hw1 + hOut, hy1, L.cx + hw2 + hOut, hy2, L.cx + hw2 - 2, hy2);
+      ctx.bezierCurveTo(L.cx + hw2 + hOut * 0.45, hy2 + 8, L.cx + hw1 + hOut * 0.45, hy1 - 8, L.cx + hw1 - 2, hy1);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+      ctx.strokeStyle = cur.deco.wall; ctx.lineWidth = Math.max(2, cur.deco.wallW * L.scale * 1.6 - 1); ctx.stroke();
+    }
+
+    // 内壁刻度线
+    if (cur.deco.ticks > 0) {
+      ctx.strokeStyle = cur.deco.wall; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5;
+      for (var tk = 1; tk <= cur.deco.ticks; tk++) {
+        var tt = tk / (cur.deco.ticks + 1);
+        var tw = profileAt(tt) * g.halfW * L.scale - 3;
+        if (tw < 8) continue;
+        var ty = L.baseY - tt * g.cupH * L.scale;
+        var tl = Math.max(4, Math.min(14, tw * 0.25));
+        ctx.beginPath(); ctx.moveTo(L.cx + tw, ty); ctx.lineTo(L.cx + tw - tl, ty); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 合格区分隔虚线
+    if (cur.deco.dash) {
+      ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(43,42,38,0.30)'; ctx.lineWidth = 1;
+      [qlo, cur.qhi].forEach(function (lv) {
+        var wAt = profileAt(lv) * g.halfW * L.scale;
+        var yy = L.baseY - lv * g.cupH * L.scale;
+        ctx.beginPath(); ctx.moveTo(L.cx - wAt, yy); ctx.lineTo(L.cx + wAt, yy); ctx.stroke();
+      });
+      ctx.restore();
     }
 
     // 杯口最小宽度参考线（游戏 MOUTH_MIN=18px）
@@ -286,6 +346,13 @@
         lines.push('      ' + f + ': ' + (typeof v === 'string' ? "'" + v + "'" : v) + ',');
       }
     });
+    // 装饰：只在非默认时输出（默认外观与 game.js 一致，不必冗余）
+    var decoParts = [];
+    for (var dk in DECO_DEF) {
+      var dv = cur.deco[dk];
+      if (dv !== DECO_DEF[dk]) decoParts.push(dk + ': ' + (typeof dv === 'string' ? "'" + dv + "'" : dv));
+    }
+    if (decoParts.length) lines.push('      deco: { ' + decoParts.join(', ') + ' },');
     // 数组折行，每行 6 个数
     var arr = '      profile: tableProfile([';
     for (var i = 0; i < pts.length; i++) {
@@ -307,6 +374,10 @@
     $('fAspect').value = cur.aspect; $('fSize').value = cur.size;
     $('fStem').checked = cur.stem;
     $('fQlo').value = cur.qlo; $('fQhi').value = cur.qhi;
+    $('fWall').value = cur.deco.wall;
+    $('fWallW').value = cur.deco.wallW; $('fGlass').value = cur.deco.glass;
+    $('fTicks').value = cur.deco.ticks;
+    $('fDash').checked = cur.deco.dash; $('fHandle').checked = cur.deco.handle;
     syncVals();
   }
   function syncVals() {
@@ -314,6 +385,9 @@
     $('vSize').textContent = (+cur.size).toFixed(2);
     $('vQlo').textContent = (+cur.qlo).toFixed(2);
     $('vQhi').textContent = (+cur.qhi).toFixed(2);
+    $('vWallW').textContent = (+cur.deco.wallW).toFixed(1);
+    $('vGlass').textContent = (+cur.deco.glass).toFixed(2);
+    $('vTicks').textContent = cur.deco.ticks;
   }
   function bindField(id, key, isNum) {
     $(id).addEventListener('input', function () {
@@ -323,10 +397,22 @@
       syncVals(); draw(); drawSpeed(); genCode();
     });
   }
+  function bindDeco(id, key, kind) { // kind: num | int | str | bool
+    $(id).addEventListener('input', function () {
+      var v = kind === 'bool' ? this.checked
+            : kind === 'int' ? parseInt(this.value, 10)
+            : kind === 'num' ? parseFloat(this.value) : this.value;
+      cur.deco[key] = v;
+      syncVals(); draw(); genCode();
+    });
+  }
   bindField('fName', 'name'); bindField('fHint', 'hint');
   bindField('fAspect', 'aspect', true); bindField('fSize', 'size', true);
   bindField('fQlo', 'qlo', true); bindField('fQhi', 'qhi', true);
   $('fStem').addEventListener('change', function () { cur.stem = this.checked; draw(); genCode(); });
+  bindDeco('fWall', 'wall', 'str'); bindDeco('fWallW', 'wallW', 'num');
+  bindDeco('fGlass', 'glass', 'num'); bindDeco('fTicks', 'ticks', 'int');
+  bindDeco('fDash', 'dash', 'bool'); bindDeco('fHandle', 'handle', 'bool');
 
   // ---------- 拖拽 ----------
   var dragIdx = -1;

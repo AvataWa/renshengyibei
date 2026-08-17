@@ -32,8 +32,9 @@ function saveCup(req, res) {
     try {
       const payload = JSON.parse(body);
       if (typeof payload.code !== 'string') return fail('缺少 code 字段');
-      const code = payload.code.replace(/^\s+/, '').replace(/\s+$/, '');
-      if (!code.startsWith('{') || !code.endsWith('}')) return fail('code 必须是杯型对象字面量');
+      // 编辑器生成的代码已带正确缩进，原样保留，只校验首尾
+      const code = payload.code.replace(/\s+$/, '');
+      if (!/^\s*\{/.test(code) || !code.endsWith('}')) return fail('code 必须是杯型对象字面量');
       if (/require\s*\(|process\.|fs\.|eval\s*\(/.test(code)) return fail('code 含非法内容');
 
       const file = path.join(__dirname, 'src', 'cups.js');
@@ -54,8 +55,9 @@ function saveCup(req, res) {
       }
       if (!spans.length) return fail('未解析到任何杯型对象');
 
-      // 缩进成 4 空格的对象块
-      const block = code.split('\n').map((l, i) => i === 0 ? '    {' : '    ' + l.trimLeft()).join('\n');
+      // 缩进成 4 空格的对象块（首行统一为 4 空格，其余行保持编辑器原缩进）
+      const codeLines = code.split('\n');
+      const block = '    {' + (codeLines.length > 1 ? '\n' + codeLines.slice(1).join('\n') : '');
 
       let out, count = spans.length;
       const idx = payload.index;

@@ -112,10 +112,13 @@
       zones: { q: [0.44, 0.68] } // 矮胖大肚：中段极慢，易早停
     },
     // ── 段位3 · 红酒新秀 +2 ──
-    {
-      name: '红葡萄酒杯', hint: '1/3 杯', aspect: 1.5, stem: true, size: 1.08,
-      profile: function (t) { return 0.16 + 0.74 * Math.pow(Math.sin(Math.PI * clamp01(t * 1.02)), 0.7); },
-      zones: { q: [0.22, 0.46] } // 大肚收口：目标区在低处，起步冲得猛
+        {
+    name: '红葡萄酒杯', hint: '1/3 杯', aspect: 1.5, stem: true, size: 1.08,
+    profile: tableProfile([
+    0.16, 0.399, 0.543, 0.656, 0.747, 0.816, 
+    0.865, 0.893, 0.9, 0.886, 0.852, 0.797, 
+    0.721, 0.623, 0.502, 0.344, 0.382]),
+    zones: { q: [0.22, 0.46] }
     },
     {
       name: '高脚浅碟杯', hint: '七分满', aspect: 0.9, stem: true, size: 1.0,
