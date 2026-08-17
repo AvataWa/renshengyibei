@@ -13,6 +13,22 @@
   function gauss(t, c, s) { return Math.exp(-Math.pow((t - c) / s, 2)); }
   function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
+  // 采样点杯型：pts 为 t=0..1 等距半宽值（0..1），Catmull-Rom 平滑插值。
+  // 杯型编辑器（cup-editor.html）生成的杯型用这种形式。
+  function tableProfile(pts) {
+    var n = pts.length - 1;
+    return function (t) {
+      var x = clamp01(t) * n;
+      var i = Math.min(Math.floor(x), n - 1);
+      var u = x - i;
+      var p0 = pts[Math.max(i - 1, 0)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(i + 2, n)];
+      var v = 0.5 * ((2 * p1) + (-p0 + p2) * u +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u);
+      return Math.max(0.05, Math.min(1, v));
+    };
+  }
+
   // ---------- 杯型库（按难度排序，累计解锁） ----------
   // zones: q=合格区[lo,hi]（淡黄）, p=完美区[lo,hi]（淡绿），其余为不合格区
   // 粗细变化越大，水位上升速度随液面高度变化越剧烈（df/dt ∝ 1/宽度²）
@@ -300,6 +316,7 @@
     randomDrink: randomDrink,
     randomLine: randomLine,
     avgWidth: avgWidth,
+    tableProfile: tableProfile,
     TIERS: TIERS,
     tierFor: tierFor,
     LINES: LINES,

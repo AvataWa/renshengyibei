@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>杯型编辑器 · 人生一杯</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: #f4f1ea; color: #33332e; display: flex; height: 100vh; overflow: hidden; }
+  /* 左侧杯型列表 */
+  #list { width: 220px; background: #fff; border-right: 1px solid #e2ddd0; overflow-y: auto; flex-shrink: 0; }
+  #list h2 { font-size: 14px; padding: 14px 14px 8px; color: #8a8574; font-weight: 600; }
+  #list .grp { padding: 10px 14px 4px; font-size: 11px; color: #b0aa97; }
+  #list .item { padding: 8px 14px; font-size: 13px; cursor: pointer; border-left: 3px solid transparent; }
+  #list .item:hover { background: #f7f4ec; }
+  #list .item.on { background: #fdf6e3; border-left-color: #e8a33d; font-weight: 600; }
+  #list .item .sub { font-size: 11px; color: #a8a291; margin-top: 2px; }
+  #newBtn { margin: 12px 14px; width: calc(100% - 28px); padding: 9px 0; border: 1px dashed #c9c2ae;
+            background: none; border-radius: 8px; cursor: pointer; font-size: 13px; color: #8a8574; }
+  #newBtn:hover { background: #f7f4ec; }
+  /* 中间画布 */
+  #stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+  #cv { background: #fdfcf8; border: 1px solid #e2ddd0; border-radius: 12px; cursor: crosshair; touch-action: none; }
+  #tip { margin-top: 10px; font-size: 12px; color: #a8a291; }
+  /* 右侧属性面板 */
+  #panel { width: 320px; background: #fff; border-left: 1px solid #e2ddd0; overflow-y: auto;
+           padding: 16px; flex-shrink: 0; }
+  #panel h3 { font-size: 13px; color: #8a8574; margin: 16px 0 8px; font-weight: 600; }
+  #panel h3:first-child { margin-top: 0; }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+  .row label { width: 64px; flex-shrink: 0; color: #6b6656; }
+  .row input[type=text] { flex: 1; padding: 6px 8px; border: 1px solid #ddd6c4; border-radius: 6px; font-size: 13px; }
+  .row input[type=range] { flex: 1; }
+  .row .val { width: 42px; text-align: right; font-variant-numeric: tabular-nums; color: #8a8574; font-size: 12px; }
+  #stats { font-size: 12px; line-height: 1.9; color: #6b6656; background: #f7f4ec; border-radius: 8px; padding: 10px 12px; }
+  #stats b { color: #33332e; }
+  .warn { color: #c0392b !important; }
+  #speedCv { width: 100%; height: 90px; background: #fdfcf8; border: 1px solid #e2ddd0; border-radius: 8px; }
+  .btn { display: block; width: 100%; padding: 10px 0; margin-bottom: 8px; border: none; border-radius: 8px;
+         font-size: 14px; cursor: pointer; }
+  #saveBtn { background: #e8a33d; color: #fff; font-weight: 600; }
+  #saveBtn:hover { background: #d8932c; }
+  #copyBtn { background: #efead9; color: #6b6656; }
+  #resetBtn { background: none; border: 1px solid #ddd6c4; color: #a8a291; }
+  #codeOut { width: 100%; height: 150px; font-family: Consolas, monospace; font-size: 11px;
+             border: 1px solid #e2ddd0; border-radius: 8px; padding: 8px; resize: vertical;
+             background: #fdfcf8; color: #6b6656; }
+  #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); background: #33332e;
+           color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0;
+           transition: opacity .25s; pointer-events: none; z-index: 9; }
+</style>
+</head>
+<body>
+<div id="list">
+  <h2>杯型库</h2>
+  <div id="items"></div>
+  <button id="newBtn">＋ 新建杯型</button>
+</div>
+<div id="stage">
+  <canvas id="cv" width="480" height="620"></canvas>
+  <div id="tip">拖动右侧圆点调整杯壁宽度 · 黄带=合格区 绿带=完美区 · 竖虚线=游戏杯口最小宽度</div>
+</div>
+<div id="panel">
+  <h3>基础信息</h3>
+  <div class="row"><label>名称</label><input type="text" id="fName"></div>
+  <div class="row"><label>提示语</label><input type="text" id="fHint"></div>
+  <div class="row"><label>高宽比</label><input type="range" id="fAspect" min="0.4" max="3.2" step="0.05"><span class="val" id="vAspect"></span></div>
+  <div class="row"><label>大小</label><input type="range" id="fSize" min="0.6" max="1.4" step="0.02"><span class="val" id="vSize"></span></div>
+  <div class="row"><label>高脚杯</label><input type="checkbox" id="fStem"></div>
+  <h3>合格区（完美区自动取顶部 1/3）</h3>
+  <div class="row"><label>下限</label><input type="range" id="fQlo" min="0.1" max="0.9" step="0.01"><span class="val" id="vQlo"></span></div>
+  <div class="row"><label>上限</label><input type="range" id="fQhi" min="0.3" max="1.0" step="0.01"><span class="val" id="vQhi"></span></div>
+  <h3>数据</h3>
+  <div id="stats"></div>
+  <h3>水位上升节奏（越高峰 = 涨得越快越危险）</h3>
+  <canvas id="speedCv" width="288" height="90"></canvas>
+  <h3>操作</h3>
+  <button class="btn" id="saveBtn">保存到 cups.js</button>
+  <button class="btn" id="copyBtn">复制代码</button>
+  <button class="btn" id="resetBtn">重置为载入时的样子</button>
+  <h3>生成的代码</h3>
+  <textarea id="codeOut" readonly></textarea>
+</div>
+<div id="toast"></div>
+<script src="src/cups.js"></script>
+<script>
+(function () {
+  'use strict';
+  var NPTS = 17;               // 控制点数量（t = 0, 1/16, ..., 1）
+  var GAME_H = 800, GAME_W = 450, MOUTH_MIN = 18; // 与 game.js 一致的参考几何
+  var PASS_FIELDS = ['sprite', 'sprHFrac', 'sprBFrac']; // 保存时原样保留的额外字段
+
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var speedCv = document.getElementById('speedCv'), sctx = speedCv.getContext('2d');
+
+  // 当前编辑状态
+  var cur = null;       // {name,hint,aspect,size,stem,qlo,qhi,pts:[],pass:{},index}
+  var snapshot = null;  // 载入时的快照，供重置
+
+  // ---------- 数据 ----------
+  function sampleProfile(profile) {
+    var pts = [];
+    for (var i = 0; i < NPTS; i++) {
+      var v = profile(i / (NPTS - 1));
+      pts.push(Math.round(Math.max(0.05, Math.min(1, v)) * 1000) / 1000);
+    }
+    return pts;
+  }
+
+  function loadCup(index) {
+    var cup = Cups.CUPS[index];
+    var pass = {};
+    PASS_FIELDS.forEach(function (f) { if (cup[f] !== undefined) pass[f] = cup[f]; });
+    cur = {
+      index: index,
+      name: cup.name, hint: cup.hint,
+      aspect: cup.aspect, size: cup.size || 1, stem: !!cup.stem,
+      qlo: cup.zones.q[0], qhi: cup.zones.q[1],
+      pts: sampleProfile(cup.profile),
+      pass: pass
+    };
+    snapshot = JSON.parse(JSON.stringify(cur));
+    syncPanel(); draw(); drawSpeed(); genCode();
+    renderList();
+  }
+
+  function newCup() {
+    var pts = [];
+    for (var i = 0; i < NPTS; i++) pts.push(i === 0 ? 0.6 : 0.7);
+    cur = { index: null, name: '新杯型', hint: '八分满', aspect: 1.4, size: 1.0,
+            stem: false, qlo: 0.62, qhi: 0.86, pts: pts, pass: {} };
+    snapshot = JSON.parse(JSON.stringify(cur));
+    syncPanel(); draw(); drawSpeed(); genCode(); renderList();
+  }
+
+  // ---------- 曲线（与 cups.js tableProfile 相同算法） ----------
+  function profileAt(t) {
+    var pts = cur.pts, n = pts.length - 1;
+    var x = Math.max(0, Math.min(1, t)) * n;
+    var i = Math.min(Math.floor(x), n - 1), u = x - i;
+    var p0 = pts[Math.max(i - 1, 0)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(i + 2, n)];
+    var v = 0.5 * ((2 * p1) + (-p0 + p2) * u +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u);
+    return Math.max(0.05, Math.min(1, v));
+  }
+  function avgW() { var s = 0, N = 40; for (var i = 0; i <= N; i++) s += profileAt(i / N); return s / (N + 1); }
+
+  // 与 game.js 相同的杯型几何
+  function geom() {
+    var cupH = GAME_H * 0.28 * cur.size;
+    var halfW = cupH / (2 * cur.aspect);
+    var maxHalf = GAME_W * 0.33;
+    if (halfW > maxHalf) { halfW = maxHalf; cupH = halfW * 2 * cur.aspect; }
+    var rimW = profileAt(1) * halfW, widened = false;
+    if (rimW < MOUTH_MIN) { halfW = MOUTH_MIN / profileAt(1); widened = true; }
+    return { cupH: cupH, halfW: halfW, widened: widened };
+  }
+
+  // ---------- 主画布 ----------
+  var PAD = 30;
+  function layout() {
+    var g = geom();
+    var scale = Math.min((cv.width - PAD * 2) / (g.halfW * 2), (cv.height - PAD * 2 - 40) / (g.cupH * (cur.stem ? 1.2 : 1)));
+    var cx = cv.width / 2, baseY = cv.height - PAD - (cur.stem ? g.cupH * 0.2 * scale : 0);
+    return { g: g, scale: scale, cx: cx, baseY: baseY };
+  }
+  function ptXY(t, w, L) { // 杯壁上一点 → 画布坐标（右侧）
+    return { x: L.cx + w * L.g.halfW * L.scale, y: L.baseY - t * L.g.cupH * L.scale };
+  }
+
+  function cupPath(L, inset) {
+    var i, N = 48, p;
+    ctx.beginPath();
+    for (i = 0; i <= N; i++) {
+      var t = i / N, w = profileAt(t) * (1 - inset);
+      p = ptXY(t, -w, L);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    for (i = N; i >= 0; i--) {
+      var t2 = i / N, w2 = profileAt(t2) * (1 - inset);
+      p = ptXY(t2, w2, L);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+  }
+
+  function draw() {
+    if (!cur) return;
+    var L = layout(), g = L.g;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+
+    // 合格区 / 完美区色带（按 cups.js 规则：绿带贴合格带顶、宽 1/3）
+    var qw = Math.max(cur.qhi - cur.qlo, 0.24);
+    var qlo = Math.max(0.15, cur.qhi - qw), pw = (cur.qhi - qlo) / 3, plo = cur.qhi - pw;
+    ctx.save();
+    cupPath(L, 0);
+    ctx.clip();
+    band(L, qlo, cur.qhi, 'rgba(232,163,61,0.28)');
+    band(L, plo, cur.qhi, 'rgba(105,176,86,0.38)');
+    ctx.restore();
+
+    // 杯壁
+    cupPath(L, 0);
+    ctx.strokeStyle = '#4a463c'; ctx.lineWidth = 2.5; ctx.stroke();
+    // 杯底封口线
+    var pb = ptXY(0, profileAt(0), L), pb2 = ptXY(0, -profileAt(0), L);
+    ctx.beginPath(); ctx.moveTo(pb2.x, pb2.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+
+    // 高脚
+    if (cur.stem) {
+      var footY = L.baseY + g.cupH * 0.2 * L.scale;
+      ctx.beginPath(); ctx.moveTo(L.cx, L.baseY); ctx.lineTo(L.cx, footY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(L.cx - g.halfW * 0.45 * L.scale, footY);
+      ctx.lineTo(L.cx + g.halfW * 0.45 * L.scale, footY); ctx.stroke();
+    }
+
+    // 杯口最小宽度参考线（游戏 MOUTH_MIN=18px）
+    var rimY = ptXY(1, 0, L).y;
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(L.cx - MOUTH_MIN * L.scale, rimY - 8); ctx.lineTo(L.cx - MOUTH_MIN * L.scale, rimY + 8);
+    ctx.moveTo(L.cx + MOUTH_MIN * L.scale, rimY - 8); ctx.lineTo(L.cx + MOUTH_MIN * L.scale, rimY + 8); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 控制点（右壁实心可拖，左壁镜像空心）
+    for (var i = 0; i < NPTS; i++) {
+      var t = i / (NPTS - 1);
+      var pr = ptXY(t, cur.pts[i], L), pl = ptXY(t, -cur.pts[i], L);
+      ctx.beginPath(); ctx.arc(pl.x, pl.y, 4, 0, 7); ctx.fillStyle = '#d8d2c0'; ctx.fill();
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, 7, 0, 7);
+      ctx.fillStyle = i === dragIdx ? '#e8a33d' : '#fff'; ctx.fill();
+      ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // 数据面板
+    var aw = avgW();
+    var rimPx = profileAt(1) * g.halfW;
+    var html = '杯口半宽 <b>' + rimPx.toFixed(1) + ' px</b>' +
+      (g.widened ? ' <span class="warn">（&lt;' + MOUTH_MIN + 'px，游戏会强制拉宽杯子！）</span>' : '') +
+      '<br>杯高 <b>' + g.cupH.toFixed(0) + ' px</b> · 平均半宽 <b>' + aw.toFixed(2) + '</b>' +
+      '<br>完美区 <b>' + plo.toFixed(2) + ' ~ ' + cur.qhi.toFixed(2) + '</b>（宽 ' + pw.toFixed(2) + '）';
+    if (cur.pass.sprite) html += '<br><span class="warn">注意：此杯使用精灵图（sprite），改形状不会影响贴图外观</span>';
+    document.getElementById('stats').innerHTML = html;
+  }
+
+  function band(L, lo, hi, color) {
+    var y1 = L.baseY - lo * L.g.cupH * L.scale, y2 = L.baseY - hi * L.g.cupH * L.scale;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, y2, cv.width, y1 - y2);
+  }
+
+  // ---------- 节奏图 ----------
+  function drawSpeed() {
+    var W = speedCv.width, H = speedCv.height, aw = avgW(), i, N = 60;
+    var vals = [], max = 0;
+    for (i = 0; i <= N; i++) {
+      var w = profileAt(i / N), v = (aw * aw) / (w * w);
+      vals.push(v); if (v > max) max = v;
+    }
+    sctx.clearRect(0, 0, W, H);
+    // 合格区背景
+    var qw = Math.max(cur.qhi - cur.qlo, 0.24), qlo = Math.max(0.15, cur.qhi - qw);
+    sctx.fillStyle = 'rgba(232,163,61,0.15)';
+    sctx.fillRect(qlo * W, 0, (cur.qhi - qlo) * W, H);
+    sctx.beginPath();
+    for (i = 0; i <= N; i++) {
+      var x = (i / N) * W, y = H - 6 - (vals[i] / max) * (H - 14);
+      i === 0 ? sctx.moveTo(x, y) : sctx.lineTo(x, y);
+    }
+    sctx.strokeStyle = '#e8a33d'; sctx.lineWidth = 2; sctx.stroke();
+    sctx.fillStyle = '#a8a291'; sctx.font = '10px sans-serif';
+    sctx.fillText('杯底', 2, H - 2); sctx.fillText('杯口', W - 26, H - 2);
+  }
+
+  // ---------- 代码生成 ----------
+  function genCode() {
+    var pts = cur.pts.map(function (v) { return +v.toFixed(3); });
+    var lines = [];
+    lines.push('    {');
+    lines.push("      name: '" + cur.name + "', hint: '" + cur.hint + "', aspect: " + (+cur.aspect.toFixed(2)) +
+               ', stem: ' + cur.stem + ', size: ' + (+cur.size.toFixed(2)) + ',');
+    PASS_FIELDS.forEach(function (f) {
+      if (cur.pass[f] !== undefined) {
+        var v = cur.pass[f];
+        lines.push('      ' + f + ': ' + (typeof v === 'string' ? "'" + v + "'" : v) + ',');
+      }
+    });
+    // 数组折行，每行 6 个数
+    var arr = '      profile: tableProfile([';
+    for (var i = 0; i < pts.length; i++) {
+      if (i % 6 === 0) arr += '\n        ';
+      arr += pts[i] + (i < pts.length - 1 ? ', ' : '');
+    }
+    arr += ']),';
+    lines.push(arr);
+    lines.push('      zones: { q: [' + (+cur.qlo.toFixed(2)) + ', ' + (+cur.qhi.toFixed(2)) + '] }');
+    lines.push('    }');
+    document.getElementById('codeOut').value = lines.join('\n');
+    return lines.join('\n');
+  }
+
+  // ---------- 面板同步 ----------
+  function $(id) { return document.getElementById(id); }
+  function syncPanel() {
+    $('fName').value = cur.name; $('fHint').value = cur.hint;
+    $('fAspect').value = cur.aspect; $('fSize').value = cur.size;
+    $('fStem').checked = cur.stem;
+    $('fQlo').value = cur.qlo; $('fQhi').value = cur.qhi;
+    syncVals();
+  }
+  function syncVals() {
+    $('vAspect').textContent = (+cur.aspect).toFixed(2);
+    $('vSize').textContent = (+cur.size).toFixed(2);
+    $('vQlo').textContent = (+cur.qlo).toFixed(2);
+    $('vQhi').textContent = (+cur.qhi).toFixed(2);
+  }
+  function bindField(id, key, isNum) {
+    $(id).addEventListener('input', function () {
+      cur[key] = isNum ? parseFloat(this.value) : this.value;
+      if (key === 'qlo' && cur.qlo >= cur.qhi) cur.qlo = cur.qhi - 0.01;
+      if (key === 'qhi' && cur.qhi <= cur.qlo) cur.qhi = cur.qlo + 0.01;
+      syncVals(); draw(); drawSpeed(); genCode();
+    });
+  }
+  bindField('fName', 'name'); bindField('fHint', 'hint');
+  bindField('fAspect', 'aspect', true); bindField('fSize', 'size', true);
+  bindField('fQlo', 'qlo', true); bindField('fQhi', 'qhi', true);
+  $('fStem').addEventListener('change', function () { cur.stem = this.checked; draw(); genCode(); });
+
+  // ---------- 拖拽 ----------
+  var dragIdx = -1;
+  function cvPos(e) {
+    var r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    var p = cvPos(e), L = layout();
+    for (var i = 0; i < NPTS; i++) {
+      var hp = ptXY(i / (NPTS - 1), cur.pts[i], L);
+      if (Math.hypot(p.x - hp.x, p.y - hp.y) < 14) { dragIdx = i; cv.setPointerCapture(e.pointerId); draw(); return; }
+    }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (dragIdx < 0) return;
+    var p = cvPos(e), L = layout();
+    var w = (p.x - L.cx) / (L.g.halfW * L.scale);
+    cur.pts[dragIdx] = Math.round(Math.max(0.05, Math.min(1, w)) * 1000) / 1000;
+    draw(); drawSpeed(); genCode();
+  });
+  cv.addEventListener('pointerup', function () { dragIdx = -1; draw(); });
+
+  // ---------- 列表 ----------
+  var TIER_LABELS = ['段位0 · 倒奶', '段位1 · 可乐', '段位2 · 啤酒', '段位3 · 红酒', '段位4 · 白酒', '段位5 · 茶', '段位6 · 温奶'];
+  function renderList() {
+    var box = $('items'), html = '', unlock = 10;
+    for (var i = 0; i < Cups.CUPS.length; i++) {
+      if (i === 0) html += '<div class="grp">' + TIER_LABELS[0] + '</div>';
+      else if (i === unlock) {
+        var tier = Math.min(((i - 10) / 2 | 0) + 1, 6);
+        html += '<div class="grp">' + TIER_LABELS[tier] + ' 解锁</div>';
+        unlock += 2;
+      }
+      var c = Cups.CUPS[i];
+      html += '<div class="item' + (cur && cur.index === i ? ' on' : '') + '" data-i="' + i + '">' +
+              c.name + '<div class="sub">' + c.hint + ' · 高宽比 ' + c.aspect + '</div></div>';
+    }
+    if (cur && cur.index === null) html += '<div class="item on">新杯型（未保存）</div>';
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.item[data-i]'), function (el) {
+      el.addEventListener('click', function () { loadCup(+this.dataset.i); });
+    });
+  }
+
+  // ---------- 操作 ----------
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.style.opacity = 1;
+    setTimeout(function () { t.style.opacity = 0; }, 2200);
+  }
+  $('newBtn').addEventListener('click', newCup);
+  $('resetBtn').addEventListener('click', function () {
+    cur = JSON.parse(JSON.stringify(snapshot));
+    syncPanel(); draw(); drawSpeed(); genCode(); toast('已重置');
+  });
+  $('copyBtn').addEventListener('click', function () {
+    var ta = $('codeOut'); ta.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject())
+      .then(function () { toast('代码已复制'); })
+      .catch(function () { document.execCommand('copy'); toast('代码已复制'); });
+  });
+  $('saveBtn').addEventListener('click', function () {
+    fetch('/save-cup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ index: cur.index, code: genCode() })
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || '保存失败');
+      toast(cur.index === null ? '已追加到 cups.js（第 ' + res.count + ' 个）' : '已保存，cups.js 已更新');
+      // 刷新本地杯型库与列表
+      return fetch('src/cups.js?_=' + Date.now());
+    }).then(function (r) {
+      if (!r) return;
+      return r.text().then(function (txt) {
+        var winCups = window.Cups;
+        new Function('window', txt.replace(/typeof self !== 'undefined' \? self : this/, 'window'))(window);
+        if (cur.index === null) cur.index = Cups.CUPS.length - 1;
+        snapshot = JSON.parse(JSON.stringify(cur));
+        renderList();
+      });
+    }).catch(function (e) {
+      toast('保存失败：' + e.message + '（请通过 npm run dev 打开本页）');
+    });
+  });
+
+  // ---------- 启动 ----------
+  loadCup(0);
+})();
+</script>
+</body>
+</html>
