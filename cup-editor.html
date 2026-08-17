@@ -258,6 +258,10 @@
     wallPath(L);
     ctx.strokeStyle = cur.deco.wall; ctx.lineWidth = cur.deco.wallW * L.scale * 1.6;
     ctx.lineJoin = 'round'; ctx.stroke();
+    // 杯底描边加粗（2 倍边线宽，与游戏一致）
+    var bw0 = profileAt(0) * L.g.halfW * L.scale;
+    ctx.beginPath(); ctx.moveTo(L.cx - bw0, L.baseY); ctx.lineTo(L.cx + bw0, L.baseY);
+    ctx.lineWidth = cur.deco.wallW * L.scale * 1.6 * 2; ctx.stroke();
 
     // 高脚
     if (cur.stem) {

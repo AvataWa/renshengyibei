@@ -34,17 +34,11 @@
   // 粗细变化越大，水位上升速度随液面高度变化越剧烈（df/dt ∝ 1/宽度²）
   var CUPS = [
     // ── 段位0 · 倒奶（10 个杯型）──
-        {
-    name: '直筒奶瓶', hint: '八分满', aspect: 1.63, stem: false, size: 0.95,
-    sprite: 'cup-milk',
-    sprHFrac: 0.857,
-    sprBFrac: 0.965,
-    deco: { wallW: 2, glass: 0.75, ticks: 6, handle: { t1: 0.78, t2: 0.24, out: 0.62 } },
-    profile: tableProfile([
-    0.82, 0.961, 1, 1, 1, 1, 
-    1, 1, 1, 1, 1, 1, 
-    1, 1, 1, 1, 1]),
-    zones: { q: [0.7, 0.94] }
+    {
+      name: '直筒奶瓶', hint: '八分满', aspect: 1.63, stem: false, size: 0.95,
+      sprite: 'cup-milk', sprHFrac: 0.857, sprBFrac: 0.965, // 精灵杯：蓝边镂空奶瓶，刻度线留在瓶壁上
+      profile: function (t) { return t < 0.08 ? 0.82 + 0.18 * (t / 0.08) : 1; }, // 直筒 + 瓶底圆角
+      zones: { q: [0.70, 0.94] }
     },
     {
       name: '功夫茶杯', hint: '七分满', aspect: 1.1, stem: false, size: 0.85,

@@ -740,6 +740,13 @@
       ctx.lineCap = 'round';
       ctx.stroke();
       ctx.lineCap = 'butt';
+      // 杯底描边加粗（2 倍边线宽，杯子更有压桌感）
+      var bw0 = this.halfW * cup.profile(0);
+      ctx.beginPath();
+      ctx.moveTo(this.cx - bw0, this.baseY);
+      ctx.lineTo(this.cx + bw0, this.baseY);
+      ctx.lineWidth = wallW * 2;
+      ctx.stroke();
     }
 
     // 杯把（右侧耳形把手；对象形式可自定义附着位置 t1/t2 与外扩幅度 out）
