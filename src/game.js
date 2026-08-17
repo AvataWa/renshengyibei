@@ -64,6 +64,7 @@
     this.poured = 0;
     this.lastCup = null;     // 上一杯杯型（避免连续重复）
     this.perfectStreak = 0;  // 连续完美计数（2 连 3 分，3 连起 4 分）
+    this.bubb = [];          // 液体内碳酸气泡（可乐/啤酒）
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
     this.streamX = 0;        // 水流落点 X（首帧倒水前兜底，避免 NaN 粒子）
@@ -75,6 +76,23 @@
 
     this.layoutUI();
     this.bindInput();
+  }
+
+  // ---------------- 颜色工具（饮品材质用） ----------------
+  function hexRgb(hex) {
+    var m = /^#([0-9a-fA-F]{6})$/.exec(hex || '');
+    if (!m) return [200, 200, 200];
+    var n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function mixHex(a, b, t) {
+    var ca = hexRgb(a), cb = hexRgb(b);
+    return 'rgb(' + Math.round(ca[0] + (cb[0] - ca[0]) * t) + ',' +
+      Math.round(ca[1] + (cb[1] - ca[1]) * t) + ',' + Math.round(ca[2] + (cb[2] - ca[2]) * t) + ')';
+  }
+  function lumOf(hex) {
+    var c = hexRgb(hex);
+    return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
   }
 
   // ---------------- UI 布局 ----------------
@@ -214,7 +232,9 @@
     this.cup = cup;
     this.lastCup = cup;
     // 饮品绑定段位（容器/颜色/名称随段位切换）
-    this.drink = { name: tier.drinkName, color: tier.color, deep: tier.deep };
+    this.drink = { name: tier.drinkName, color: tier.color, deep: tier.deep,
+      alpha: tier.alpha != null ? tier.alpha : 0.92, bubbles: !!tier.bubbles, foam: !!tier.foam };
+    this.bubb = []; // 碳酸气泡清空
     this.cupAvgW = Cups.avgWidth(this.cup);
     // 当前容器配置（本回合冻结：升段发生在 win() 时，容器不能即时跳变，等下一回合再换）
     this.containerIdx = this.tierIdx;
@@ -316,6 +336,21 @@
     for (i = this.toasts.length - 1; i >= 0; i--) { this.toasts[i].life -= dt; if (this.toasts[i].life <= 0) this.toasts.splice(i, 1); }
     for (i = this.floats.length - 1; i >= 0; i--) { var fl = this.floats[i]; fl.life -= dt; fl.y -= 40 * dt; if (fl.life <= 0) this.floats.splice(i, 1); }
 
+    // 碳酸气泡：在液体内随机生成，缓缓上浮到液面破裂
+    for (i = this.bubb.length - 1; i >= 0; i--) {
+      var bb = this.bubb[i];
+      bb.y -= bb.vy * dt;
+      if (this.state !== 'play' || bb.y < this.baseY - Math.min(this.level, 1) * this.cupH + 4) this.bubb.splice(i, 1);
+    }
+    if (this.state === 'play' && this.drink && this.drink.bubbles && this.level > 0.04 && this.bubb.length < 40) {
+      if (Math.random() < dt * 11) {
+        var bt = 0.04 + Math.random() * Math.max(0.01, Math.min(this.level, 1) - 0.06);
+        var bw2 = this.halfW * this.cup.profile(bt) * 0.8;
+        this.bubb.push({ x: this.cx + (Math.random() * 2 - 1) * bw2, y: this.baseY - bt * this.cupH,
+          r: 1 + Math.random() * 2.2, vy: 22 + Math.random() * 30 });
+      }
+    }
+
     // 粒子
     for (i = this.particles.length - 1; i >= 0; i--) {
       var p = this.particles[i];
@@ -368,9 +403,17 @@
     }
   };
 
+  // 水花/气泡的色差色：比液体本身亮一截（浅饮品则向深色端偏移），水花更有层次
+  Game.prototype.splashTint = function () {
+    var d = this.drink || {};
+    var c = d.color || '#3FA7FF';
+    return lumOf(c) > 0.85 ? mixHex(c, d.deep || '#C9B18A', 0.55) : mixHex(c, '#FFFFFF', 0.42);
+  };
+
   Game.prototype.spawnSplash = function () {
     if (this.particles.length > 110) return;
     var surfaceY = this.baseY - Math.min(this.level, 1) * this.cupH;
+    var tint = this.splashTint();
     for (var k = 0; k < 2; k++) {
       this.particles.push({
         x: this.streamX + (Math.random() - 0.5) * 14,
@@ -379,7 +422,7 @@
         vy: -Math.random() * 260 - 60,
         r: 2 + Math.random() * 3,
         life: 0.45 + Math.random() * 0.2,
-        color: this.drink.color
+        color: tint
       });
     }
   };
@@ -392,6 +435,7 @@
     var strength = Math.min(1, (this.angle - this.T.POUR_THRESHOLD) / 0.4);
     var v0 = 40 + 110 * strength;
     var dx = Math.sin(a), dy = -Math.cos(a);
+    var tint2 = this.splashTint();
     for (var k = 0; k < 2; k++) {
       this.particles.push({
         x: tip.x + (Math.random() - 0.5) * 6,
@@ -400,7 +444,7 @@
         vy: dy * v0 * 0.5 + (Math.random() - 0.5) * 70 - 30,
         r: 1 + Math.random() * 2,
         life: 0.18 + Math.random() * 0.15,
-        color: this.drink.color
+        color: tint2
       });
     }
   };
@@ -588,10 +632,39 @@
         ctx.lineTo(this.cx + rw, ri === 0 ? ry + 2 : ry);
       }
       ctx.closePath();
-      ctx.globalAlpha = 0.88;
-      ctx.fillStyle = this.drink.color;
+      // 材质：顶部饮品本色 → 底部深色，纵向渐变出体积感；透明度按饮品（白酒清透、牛奶醇厚）
+      var dk = this.drink;
+      var lgrad = ctx.createLinearGradient(0, surfY, 0, this.baseY);
+      lgrad.addColorStop(0, dk.color);
+      lgrad.addColorStop(1, dk.deep || dk.color);
+      ctx.globalAlpha = dk.alpha != null ? dk.alpha : 0.92;
+      ctx.fillStyle = lgrad;
       ctx.fill();
       ctx.globalAlpha = 1;
+      // 碳酸气泡：液体内上浮的小气泡圈（可乐/啤酒），颜色比液体亮一截
+      if (this.bubb.length) {
+        ctx.strokeStyle = this.splashTint();
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.55;
+        for (var bi = 0; bi < this.bubb.length; bi++) {
+          var b2 = this.bubb[bi];
+          ctx.beginPath(); ctx.arc(b2.x, b2.y, b2.r, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+      // 啤酒泡沫层：沿波动液面盖一条奶油色泡沫
+      if (dk.foam && this.level > 0.02) {
+        ctx.strokeStyle = 'rgba(255,246,224,0.92)';
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (var fi = 0; fi <= steps; fi++) {
+          var fx = this.cx - halfAt + (2 * halfAt) * (fi / steps);
+          var fw2 = Math.sin(this.time * 6 + fi * 0.9) * 3 * this.surfaceWave;
+          if (fi === 0) ctx.moveTo(fx, surfY + fw2); else ctx.lineTo(fx, surfY + fw2);
+        }
+        ctx.stroke();
+      }
       // 液面线：仅在液面平静后显示（倒水波动时隐藏，避免直线穿浪）
       var lineA = 1 - this.surfaceWave;
       if (lineA > 0.05) {

@@ -230,19 +230,19 @@
   // 人生阶段 × 饮品：小孩→上学→毕业→职场新人→中坚→老人→寿星（喝奶补钙，人生闭环）
   // cupCount = 该段位解锁的杯型数量（10 + 2 × 段位索引，共 22 种杯型）
   var TIERS = [
-    { key: 'milk',     name: '奶瓶萌新', stage: '小孩',     drinkName: '牛奶', score: 0,   cupCount: 10, pourRate: 0.338,
+    { key: 'milk',     name: '奶瓶萌新', stage: '小孩',     drinkName: '牛奶', score: 0,   cupCount: 10, pourRate: 0.338, alpha: 1.0, bubbles: false,
       line: '人生的第一杯，要稳稳的。', wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。', color: '#FFFFFF', deep: '#E3D5B5', foam: false },
-    { key: 'cola',     name: '可乐少年', stage: '上学',     drinkName: '可乐', score: 20,  cupCount: 12, pourRate: 0.338,
+    { key: 'cola',     name: '可乐少年', stage: '上学',     drinkName: '可乐', score: 20,  cupCount: 12, pourRate: 0.338, alpha: 0.90, bubbles: true,
       line: '快乐水配暑假，倒多少都是自由。', wisdom: '气泡再欢腾也会散去，快乐水教我的事：趁有气，大口喝。', color: '#40251A', deep: '#241209', foam: false },
-    { key: 'beer',     name: '啤酒青年', stage: '大学/毕业', drinkName: '啤酒', score: 60,  cupCount: 14, pourRate: 0.338,
+    { key: 'beer',     name: '啤酒青年', stage: '大学/毕业', drinkName: '啤酒', score: 60,  cupCount: 14, pourRate: 0.338, alpha: 0.85, bubbles: true,
       line: '泡沫升起来的时候，青春也是。', wisdom: '泡沫是啤酒的皇冠，也是青春的——看着满，抿一口才知真假。', color: '#F2B33D', deep: '#D98E1B', foam: true },
-    { key: 'wine',     name: '红酒新秀', stage: '职场新人', drinkName: '红酒', score: 120, cupCount: 16, pourRate: 0.338,
+    { key: 'wine',     name: '红酒新秀', stage: '职场新人', drinkName: '红酒', score: 120, cupCount: 16, pourRate: 0.338, alpha: 0.82, bubbles: false,
       line: '只倒三分之一——职场第一课：留余地。', wisdom: '红酒只倒三分满。杯留余地，人也留余地，香气才进得来。', color: '#8E2434', deep: '#6B1424', foam: false },
-    { key: 'baijiu',   name: '白酒骨干', stage: '职场中坚', drinkName: '白酒', score: 200, cupCount: 18, pourRate: 0.338,
+    { key: 'baijiu',   name: '白酒骨干', stage: '职场中坚', drinkName: '白酒', score: 200, cupCount: 18, pourRate: 0.338, alpha: 0.50, bubbles: false,
       line: '这一杯，敬客户，也敬自己。', wisdom: '酒满敬人，话满误事。这一杯的分寸，是二十年饭局换的。', color: '#EDF5FB', deep: '#C7DCEC', foam: false },
-    { key: 'tea',      name: '茶道宗师', stage: '职场老人', drinkName: '茶',   score: 300, cupCount: 20, pourRate: 0.338,
+    { key: 'tea',      name: '茶道宗师', stage: '职场老人', drinkName: '茶',   score: 300, cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: false,
       line: '七分是茶，三分是分寸。', wisdom: '茶倒七分满，剩下三分是情谊。倒得太满，烫的是端杯的人。', color: '#B4692E', deep: '#8A4A1C', foam: false },
-    { key: 'warmmilk', name: '暖奶寿星', stage: '老人',     drinkName: '温奶', score: 500, cupCount: 22, pourRate: 0.338,
+    { key: 'warmmilk', name: '暖奶寿星', stage: '老人',     drinkName: '温奶', score: 500, cupCount: 22, pourRate: 0.338, alpha: 1.0, bubbles: false,
       line: '转了一大圈，又回到一杯奶。这一杯，敬岁月。', wisdom: '从奶瓶到酒杯又回到奶瓶。人生闭环，暖的都是同一个胃。', color: '#FFFFFF', deep: '#E3D5B5', foam: false }
   ];
 
