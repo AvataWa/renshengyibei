@@ -60,12 +60,20 @@
       }
     };
 
+    // 调试摆拍：?pose=1&tier=1 直接摆出指定段位的倒水画面（仅本地预览排查用）
+    var pose = null;
+    if (!isWx && typeof location !== 'undefined' && /[?&]pose=1/.test(location.search)) {
+      var tm = /[?&]tier=(\d)/.exec(location.search);
+      pose = { tier: tm ? parseInt(tm[1], 10) : 0 };
+    }
+
     var env = {
       canvas: canvas,
       ctx: ctx,
       W: W,
       H: H,
       assets: assets,
+      pose: pose,
       onTouchStart: isWx
         ? function (cb) { wx.onTouchStart(function (e) { var t = e.touches[0]; if (t) cb(t.clientX, t.clientY); }); }
         : function (cb) {

@@ -79,6 +79,18 @@
 
     this.layoutUI();
     this.bindInput();
+
+    // 调试摆拍姿态（env.pose，仅本地预览）
+    if (env.pose) {
+      this.startGame();
+      this.tierIdx = env.pose.tier;
+      this.newRound();
+      this.angle = 0.42;
+      this.level = 0.45;
+      this.poured = 0.45;
+      this.phase = 'press';
+      this.pressing = true;
+    }
   }
 
   // ---------------- 颜色工具（饮品材质用） ----------------
@@ -418,8 +430,13 @@
         this._fxCtx = this._fx.getContext('2d');
       } catch (e) { this._fxOk = false; this._fx = null; return null; }
     }
-    if (this._fx.width !== this.W) this._fx.width = this.W;
-    if (this._fx.height !== this.H) this._fx.height = this.H;
+    var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    var fw = Math.round(this.W * dpr), fh = Math.round(this.H * dpr);
+    if (this._fx.width !== fw) this._fx.width = fw;
+    if (this._fx.height !== fh) this._fx.height = fh;
+    this._fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._fxCtx.globalCompositeOperation = 'source-over';
+    this._fxCtx.globalAlpha = 1;
     return this._fxCtx;
   };
 
@@ -766,10 +783,10 @@
         // 瓶内腔竖直范围（贴图顶 6% / 底 3% 留白）；液面随本回合倒出量下降
         var inTop = -dh0 * cfg.anchor.y + dh0 * 0.06;
         var inBot = dh0 * (1 - cfg.anchor.y) - dh0 * 0.03;
-        var fill = Math.max(0.3, 0.92 - this.poured * 0.6);
+        var fill = Math.max(0.3, 0.85 - this.poured * 0.55);
         fc.translate(dw0 * (0.5 - cfg.anchor.x), inBot - fill * (inBot - inTop));
         fc.rotate(-theta); // 液面回到屏幕水平
-        fc.globalCompositeOperation = 'source-in';
+        fc.globalCompositeOperation = 'source-atop'; // 叠加在瓶身之上并裁进剪影（不能 source-in，会抹掉瓶身）
         fc.globalAlpha = 0.38 * (this.drink.alpha != null ? this.drink.alpha : 0.9);
         fc.fillStyle = this.drink.color;
         fc.fillRect(-this.W, 0, this.W * 2, this.H * 2);
