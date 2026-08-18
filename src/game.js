@@ -518,11 +518,13 @@
       this.drawMenu();
     } else {
       this.drawTable();
-      // 换杯过渡：新杯 + 容器淡入并微微上浮
-      var fr = this.state === 'play' ? (this.roundFade || 0) : 1;
+      // 换杯过渡：纯淡入淡出——旧杯在 0.18s 内淡出，新杯 0.22s 淡入，无位移
+      var fr;
+      if (this.state === 'play' && this.phase === 'next') fr = Math.max(0, this.phaseTimer / 0.18);
+      else if (this.state === 'play') fr = this.roundFade != null ? this.roundFade : 1;
+      else fr = 1;
       ctx.save();
       ctx.globalAlpha = fr;
-      ctx.translate(0, (1 - fr) * this.H * 0.02);
       this.drawCup();
       this.drawBucket();
       ctx.restore();
