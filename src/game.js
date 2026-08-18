@@ -323,7 +323,7 @@
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.phase = 'next';
-    this.phaseTimer = 0.18; // 极短停顿让玩家看到结果，随后立即换杯（配合新杯淡入过渡）
+    this.phaseTimer = 0.48; // 先原样停留 0.3s 看清结果，最后 0.18s 淡出（render 里分两段算透明度）
   };
 
   Game.prototype.fail = function (reason) {
@@ -518,9 +518,9 @@
       this.drawMenu();
     } else {
       this.drawTable();
-      // 换杯过渡：纯淡入淡出——旧杯在 0.18s 内淡出，新杯 0.22s 淡入，无位移
+      // 换杯过渡：纯淡入淡出——先停留 0.3s 看清结果，旧杯再用 0.18s 淡出，新杯 0.22s 淡入
       var fr;
-      if (this.state === 'play' && this.phase === 'next') fr = Math.max(0, this.phaseTimer / 0.18);
+      if (this.state === 'play' && this.phase === 'next') fr = Math.min(1, Math.max(0, this.phaseTimer / 0.18));
       else if (this.state === 'play') fr = this.roundFade != null ? this.roundFade : 1;
       else fr = 1;
       ctx.save();
