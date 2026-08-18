@@ -65,6 +65,7 @@
     this.lastCup = null;     // 上一杯杯型（避免连续重复）
     this.perfectStreak = 0;  // 连续完美计数（2 连 3 分，3 连起 4 分）
     this.bubb = [];          // 液体内碳酸气泡（可乐/啤酒）
+    this.roundFade = 1;      // 新杯淡入过渡（1 = 完全显示）
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
     this.streamX = 0;        // 水流落点 X（首帧倒水前兜底，避免 NaN 粒子）
@@ -281,6 +282,7 @@
     this.usedPress = false;
     this.phase = 'aim';
     this.failReason = '';
+    this.roundFade = 0; // 新杯淡入过渡进度（update 中推进到 1）
   };
 
   Game.prototype.win = function (basePts, label) {
@@ -321,7 +323,7 @@
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.phase = 'next';
-    this.phaseTimer = 0; // 倒完即开下一杯，无延迟（加分/连击浮字有自己的存续时间，不受影响）
+    this.phaseTimer = 0.18; // 极短停顿让玩家看到结果，随后立即换杯（配合新杯淡入过渡）
   };
 
   Game.prototype.fail = function (reason) {
@@ -352,6 +354,7 @@
   // ---------------- 更新 ----------------
   Game.prototype.update = function (dt) {
     this.time += dt;
+    if (this.roundFade < 1) this.roundFade = Math.min(1, this.roundFade + dt / 0.22); // 新杯淡入
 
     // 提示与浮字
     var i;
@@ -515,8 +518,14 @@
       this.drawMenu();
     } else {
       this.drawTable();
+      // 换杯过渡：新杯 + 容器淡入并微微上浮
+      var fr = this.state === 'play' ? (this.roundFade || 0) : 1;
+      ctx.save();
+      ctx.globalAlpha = fr;
+      ctx.translate(0, (1 - fr) * this.H * 0.02);
       this.drawCup();
       this.drawBucket();
+      ctx.restore();
       this.drawStream();
       this.drawParticles();
       this.drawScoreHUD();
