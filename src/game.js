@@ -296,21 +296,27 @@
     this.score += pts;
     this.totalCups++;
     this.env.setStorage('totalCups', String(this.totalCups));
-    // 本局得分 → 段位晋升检测（失败后重开即从 0 段倒奶重来）
+    // 本局得分 → 段位/阶晋升检测（失败后重开即从 0 段倒奶重来）
     this.totalScore += pts;
     this.env.setStorage('totalScore', String(this.totalScore));
-    var newTier = Cups.tierFor(this.score);
+    var prevRank = Cups.rankFor(this.score - pts);
+    var newRank = Cups.rankFor(this.score);
+    var newTier = newRank.tierIdx;
     var didTierUp = newTier > this.tierIdx;
+    var didStageUp = !didTierUp && newRank.stageIdx > prevRank.stageIdx;
     if (didTierUp) {
       this.tierIdx = newTier;
       var t = Cups.TIERS[newTier];
-      this.floats.push({ text: '升段！' + t.name, x: this.W / 2, y: this.H * 0.32, life: 1.8, color: PAL.INK });
+      this.floats.push({ text: '升段！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.8, color: PAL.INK });
       this.toast(t.line);
       if (this.vibrateOn) this.env.vibrate();
+    } else if (didStageUp) {
+      // 段内进阶：同段位饮品/容器不变，只弹进阶提示
+      this.floats.push({ text: '进阶！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.5, color: PAL.INK });
     }
     this.floats.push({ text: '+' + pts + ' ' + label, x: this.cx, y: this.cupTop - this.H * 0.075, life: 1.2, color: basePts === 2 ? '#2EA85C' : '#E0861A' });
-    // 完美彩蛋文案：升段回合已展示升段寄语，不再叠完美提示
-    if (basePts === 2 && !didTierUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
+    // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
+    if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.phase = 'next';
     this.phaseTimer = 0.9;
   };
@@ -977,6 +983,11 @@
 
   Game.prototype.drawScoreHUD = function () {
     var ctx = this.ctx;
+    // 当前「段位·阶」：左上角纯文本（随本局得分即时变化）
+    ctx.textAlign = 'left';
+    ctx.font = 'bold ' + Math.round(this.H * 0.02) + 'px sans-serif';
+    ctx.fillStyle = PAL.MUTED;
+    ctx.fillText(Cups.rankFor(this.score).label, 14, this.H * 0.052);
     // 历史最高：右上角纯文本
     ctx.textAlign = 'right';
     ctx.font = Math.round(this.H * 0.02) + 'px sans-serif';
@@ -1090,7 +1101,7 @@
     ctx.fillText('最高段位', cx1 + W * 0.05, cy1 + ch1 * 0.32);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold ' + Math.round(H * 0.032) + 'px sans-serif';
-    ctx.fillText(tier.name, cx1 + W * 0.05, cy1 + ch1 * 0.72);
+    ctx.fillText(Cups.rankFor(this.best).label, cx1 + W * 0.05, cy1 + ch1 * 0.72);
     // 黄色开始键（呼吸效果）
     var pulse = 1 + 0.06 * Math.sin(this.time * 4);
     var pr = W * 0.075 * pulse, pxc = cx1 + cw1 - W * 0.10, pyc = cy1 + ch1 / 2;
@@ -1259,7 +1270,7 @@
     // 段位徽章（黄色胶囊，黑卡上最显眼）
     var oTier = Cups.TIERS[this.tierIdx];
     var oNext = Cups.TIERS[this.tierIdx + 1];
-    var capsuleTxt = '段位 · ' + oTier.name;
+    var capsuleTxt = '段位 · ' + Cups.rankFor(this.score).label;
     ctx.font = 'bold ' + Math.round(H * 0.024) + 'px sans-serif';
     var cw = ctx.measureText(capsuleTxt).width + W * 0.12;
     var ch = H * 0.05, cx0 = W / 2 - cw / 2, cy0 = py + H * 0.26;

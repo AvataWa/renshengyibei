@@ -9,7 +9,9 @@
  *   key       段位标识（勿改，对应饮品/容器/杯型绑定）
  *   name      段位名（主界面/局内/结算展示）
  *   stage     人生阶段名（目前仅存档用，结算不再展示）
- *   score     需要达到的【本局分数】，达到即晋升该段位
+ *   score     需要达到的【本局分数】，达到即晋升该段位（= steps[0]）
+ *   steps     段内 3 阶的分数门槛 [一阶, 二阶, 三阶]，如 [55,65,75]
+ *   stages    段内 3 阶的后缀名，展示为「段位名·后缀」，如 职场新人·初入
  *   pourRate  按压后倒水速度系数（默认 0.338，越大倒得越快越难）
  *   cupCount  该段位杯池取前 N 个杯型（每段独立 20 杯池，N 最大 20）
  *   line      晋升该段位时的提示文案
@@ -22,44 +24,51 @@
 })(typeof GameGlobal !== 'undefined' ? GameGlobal : (typeof self !== 'undefined' ? self : this), function () {
   return [
     {
-      key: 'milk', name: '奶瓶萌新', stage: '小孩',
-      score: 0, pourRate: 0.3, cupCount: 20,
+      key: 'milk', name: '人类幼崽', stage: '小孩',
+      score: 0, steps: [0, 4, 8], stages: ['喝奶', '学步', '入园'],
+      pourRate: 0.3, cupCount: 20,
       line: '人生的第一杯，要稳稳的。',
       wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。'
     },
     {
-      key: 'cola', name: '可乐少年', stage: '上学',
-      score: 10, pourRate: 0.45, cupCount: 12,
+      key: 'cola', name: '元气少年', stage: '上学',
+      score: 10, steps: [10, 15, 20], stages: ['开学', '期末', '升学'],
+      pourRate: 0.45, cupCount: 12,
       line: '快乐水配暑假，倒多少都是自由。',
       wisdom: '气泡再欢腾也会散去，快乐水教我的事：趁有气，大口喝。'
     },
     {
-      key: 'beer', name: '啤酒青年', stage: '大学/毕业',
-      score: 30, pourRate: 0.5, cupCount: 14,
+      key: 'beer', name: '未来可期', stage: '大学/毕业',
+      score: 25, steps: [25, 35, 45], stages: ['迎新', '逐梦', '毕业'],
+      pourRate: 0.5, cupCount: 14,
       line: '泡沫升起来的时候，青春也是。',
       wisdom: '泡沫是啤酒的皇冠，也是青春的——看着满，抿一口才知真假。'
     },
     {
-      key: 'wine', name: '红酒新秀', stage: '职场新人',
-      score: 80, pourRate: 0.55, cupCount: 16,
+      key: 'wine', name: '职场新人', stage: '职场新人',
+      score: 55, steps: [55, 65, 75], stages: ['初入', '上手', '转正'],
+      pourRate: 0.55, cupCount: 16,
       line: '只倒三分之一——职场第一课：留余地。',
       wisdom: '红酒只倒三分满。杯留余地，人也留余地，香气才进得来。'
     },
     {
-      key: 'baijiu', name: '白酒骨干', stage: '职场中坚',
-      score: 150, pourRate: 0.6, cupCount: 18,
+      key: 'baijiu', name: '职场中坚', stage: '职场中坚',
+      score: 85, steps: [85, 100, 115], stages: ['扛事', '带队', '掌局'],
+      pourRate: 0.6, cupCount: 18,
       line: '这一杯，敬客户，也敬自己。',
       wisdom: '酒满敬人，话满误事。这一杯的分寸，是二十年饭局换的。'
     },
     {
-      key: 'tea', name: '茶道宗师', stage: '职场老人',
-      score: 300, pourRate: 0.65, cupCount: 10,
+      key: 'tea', name: '人间清醒', stage: '职场老人',
+      score: 130, steps: [130, 145, 160], stages: ['观局', '知止', '不惑'],
+      pourRate: 0.65, cupCount: 10,
       line: '七分是茶，三分是分寸。',
       wisdom: '茶倒七分满，剩下三分是情谊。倒得太满，烫的是端杯的人。'
     },
     {
-      key: 'warmmilk', name: '暖奶寿星', stage: '老人',
-      score: 500, pourRate: 0.7, cupCount: 22,
+      key: 'warmmilk', name: '岁月回甘', stage: '老人',
+      score: 180, steps: [180, 210, 240], stages: ['回甘', '归简', '圆满'],
+      pourRate: 0.7, cupCount: 22,
       line: '转了一大圈，又回到一杯奶。这一杯，敬岁月。',
       wisdom: '从奶瓶到酒杯又回到奶瓶。人生闭环，暖的都是同一个胃。'
     }

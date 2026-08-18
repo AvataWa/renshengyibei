@@ -47,15 +47,15 @@ function winOnce() {
   game.update(1 / 60); game.render(); // 让 floats/toast 跑一帧
 }
 
-for (let i = 0; i < 20; i++) winOnce(); // 本局 20 分 → 段位1 可乐少年
+for (let i = 0; i < 20; i++) winOnce(); // 本局 20 分 → 段位1 元气少年
 assert.strictEqual(game.score, 20, '本局分应为 20');
-assert.strictEqual(game.tierIdx, 1, '20 分应升到可乐少年');
+assert.strictEqual(game.tierIdx, 1, '20 分应升到元气少年');
 game.newRound();
 assert.strictEqual(game.drink.name, '可乐', '段位1饮品应为可乐');
 console.log('跨段 0→1 OK：', Cups.TIERS[game.tierIdx].name, '/', game.drink.name);
 
-for (let i = 0; i < 40; i++) winOnce(); // 本局 60 分 → 段位2 啤酒青年
-assert.strictEqual(game.tierIdx, 2, '60 分应升到啤酒青年');
+for (let i = 0; i < 10; i++) winOnce(); // 本局 30 分 → 段位2 未来可期（啤酒）
+assert.strictEqual(game.tierIdx, 2, '30 分应升到未来可期');
 game.newRound();
 assert.strictEqual(game.drink.name, '啤酒', '段位2饮品应为啤酒');
 console.log('跨段 1→2 OK：', Cups.TIERS[game.tierIdx].name, '/', game.drink.name);
@@ -67,25 +67,25 @@ assert.strictEqual(game.score, 0, '重开后分数应清零');
 assert.strictEqual(game.drink.name, '牛奶', '重开后第一杯应为牛奶');
 console.log('失败重开回到 0 段倒奶 OK');
 
-// 2. 主界面段位跟随历史最高分（暖奶寿星 500 分）；暖奶寿星回到倒奶杯池（人生闭环）
+// 2. 主界面段位跟随历史最高分（岁月回甘 500 分）；岁月回甘回到倒奶杯池（人生闭环）
 storage = { best: '500' };
 game = new Game(makeEnv(storage));
-assert.strictEqual(game.tierIdx, 6, '历史最高 500 分应显示暖奶寿星');
+assert.strictEqual(game.tierIdx, 6, '历史最高 500 分应显示岁月回甘');
 game.newRound();
-assert.strictEqual(game.drink.name, '温奶', '暖奶寿星回到奶（人生闭环）');
+assert.strictEqual(game.drink.name, '温奶', '岁月回甘回到奶（人生闭环）');
 const seen = new Set();
 for (let i = 0; i < 600; i++) {
   const cup = Cups.randomCupTier(6, Cups.TIERS[6].cupCount);
-  assert.strictEqual(cup.pool, 0, '暖奶寿星应用倒奶杯池: ' + cup.name);
+  assert.strictEqual(cup.pool, 0, '岁月回甘应用倒奶杯池: ' + cup.name);
   seen.add(cup.name);
 }
 assert.strictEqual(seen.size, 20, '倒奶杯池应有 20 个杯型，实际：' + seen.size);
-console.log('暖奶寿星杯池（=倒奶池）覆盖 OK：', seen.size, '个');
+console.log('岁月回甘杯池（=倒奶池）覆盖 OK：', seen.size, '个');
 
 // 3. 段位杯池互相独立（段位3 = 红酒池前 cupCount 个，不串池）
-storage = { best: '120' };
+storage = { best: '60' };
 game = new Game(makeEnv(storage));
-assert.strictEqual(game.tierIdx, 3, '历史最高 120 分应显示红酒新秀');
+assert.strictEqual(game.tierIdx, 3, '历史最高 60 分应显示职场新人');
 const cupCount = Cups.TIERS[3].cupCount;
 for (let i = 0; i < 400; i++) {
   const cup = Cups.randomCupTier(3, cupCount);
@@ -99,6 +99,17 @@ console.log('段位3独立杯池 OK（红酒池取前', cupCount, '个）');
 game.newRound();
 const tier3Simple = Cups.CUPS.filter((c) => c.pool === 3).slice(0, 3).map((c) => c.name);
 assert.ok(tier3Simple.includes(game.cup.name), '每局第一杯应为本段杯池的简单杯型');
+
+// 4b. 「段位·阶」标签：每段 3 阶，按 steps 门槛晋升
+assert.strictEqual(Cups.rankFor(0).label, '人类幼崽·喝奶');
+assert.strictEqual(Cups.rankFor(4).label, '人类幼崽·学步');
+assert.strictEqual(Cups.rankFor(9).label, '人类幼崽·入园'); // 9 < 10 跨段门槛 → 奶段三阶
+assert.strictEqual(Cups.rankFor(55).label, '职场新人·初入');
+assert.strictEqual(Cups.rankFor(65).label, '职场新人·上手');
+assert.strictEqual(Cups.rankFor(75).label, '职场新人·转正');
+assert.strictEqual(Cups.rankFor(240).label, '岁月回甘·圆满');
+assert.strictEqual(Cups.rankFor(999).label, '岁月回甘·圆满');
+console.log('段位·阶 rankFor OK');
 
 // 5. 菜单徽章 + 结算段位行渲染不报错
 game.state = 'menu'; game.render();

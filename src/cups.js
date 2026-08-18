@@ -2,7 +2,7 @@
  * 杯型库 + 饮品库
  * 杯型 profile(t): t 从 0(杯底) 到 1(杯口)，返回半宽（0..1 相对单位）
  * 杯池规则：6 个段位各有独立的 20 个杯型（cup.pool 字段），段位间不复用；
- * 暖奶寿星（段位6）回到倒奶杯池——人生闭环。
+ * 岁月回甘（段位6）回到倒奶杯池——人生闭环。
  */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) module.exports = factory();
@@ -1130,7 +1130,7 @@
   }
 
   // 按段位独立杯池随机：每个段位有自己专属的 20 个杯型（cup.pool 字段标识）。
-  // cupCount 限制取池内前 N 个（默认全池）；暖奶寿星（段位6）回到倒奶杯池——人生闭环。
+  // cupCount 限制取池内前 N 个（默认全池）；岁月回甘（段位6）回到倒奶杯池——人生闭环。
   function randomCupTier(tierIdx, cupCount) {
     var poolIdx = tierIdx >= 6 ? 0 : Math.max(0, tierIdx | 0);
     var poolArr = [];
@@ -1149,21 +1149,21 @@
   // ---------- 段位体系 · 倒水人生 ----------
   // 人生阶段 × 饮品：小孩→上学→毕业→职场新人→中坚→老人→寿星（喝奶补钙，人生闭环）
   // 每个段位有独立的 20 个杯型池（cup.pool），cupCount = 从本段杯池取前 N 个（默认 20）；
-  // 暖奶寿星（warmmilk）回到倒奶杯池——人生闭环。
+  // 岁月回甘（warmmilk）回到倒奶杯池——人生闭环。
   var TIERS = [
-    { key: 'milk',     name: '奶瓶萌新', stage: '小孩',     drinkName: '牛奶', score: 0,   cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
+    { key: 'milk',     name: '人类幼崽', stage: '小孩',     drinkName: '牛奶', score: 0,   steps: [0, 4, 8], stages: ['喝奶', '学步', '入园'], cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
       line: '人生的第一杯，要稳稳的。', wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。', color: '#FFFFFF', deep: '#E3D5B5', foam: false },
-    { key: 'cola',     name: '可乐少年', stage: '上学',     drinkName: '可乐', score: 20,  cupCount: 20, pourRate: 0.338, alpha: 0.90, bubbles: true,
+    { key: 'cola',     name: '元气少年', stage: '上学',     drinkName: '可乐', score: 10,  steps: [10, 15, 20], stages: ['开学', '期末', '升学'], cupCount: 20, pourRate: 0.338, alpha: 0.90, bubbles: true,
       line: '快乐水配暑假，倒多少都是自由。', wisdom: '气泡再欢腾也会散去，快乐水教我的事：趁有气，大口喝。', color: '#40251A', deep: '#241209', foam: false },
-    { key: 'beer',     name: '啤酒青年', stage: '大学/毕业', drinkName: '啤酒', score: 60,  cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: true,
+    { key: 'beer',     name: '未来可期', stage: '大学/毕业', drinkName: '啤酒', score: 25,  steps: [25, 35, 45], stages: ['迎新', '逐梦', '毕业'], cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: true,
       line: '泡沫升起来的时候，青春也是。', wisdom: '泡沫是啤酒的皇冠，也是青春的——看着满，抿一口才知真假。', color: '#F2B33D', deep: '#D98E1B', foam: true },
-    { key: 'wine',     name: '红酒新秀', stage: '职场新人', drinkName: '红酒', score: 120, cupCount: 20, pourRate: 0.338, alpha: 0.82, bubbles: false,
+    { key: 'wine',     name: '职场新人', stage: '职场新人', drinkName: '红酒', score: 55,  steps: [55, 65, 75], stages: ['初入', '上手', '转正'], cupCount: 20, pourRate: 0.338, alpha: 0.82, bubbles: false,
       line: '只倒三分之一——职场第一课：留余地。', wisdom: '红酒只倒三分满。杯留余地，人也留余地，香气才进得来。', color: '#8E2434', deep: '#6B1424', foam: false },
-    { key: 'baijiu',   name: '白酒骨干', stage: '职场中坚', drinkName: '白酒', score: 200, cupCount: 20, pourRate: 0.338, alpha: 0.50, bubbles: false,
+    { key: 'baijiu',   name: '职场中坚', stage: '职场中坚', drinkName: '白酒', score: 85,  steps: [85, 100, 115], stages: ['扛事', '带队', '掌局'], cupCount: 20, pourRate: 0.338, alpha: 0.50, bubbles: false,
       line: '这一杯，敬客户，也敬自己。', wisdom: '酒满敬人，话满误事。这一杯的分寸，是二十年饭局换的。', color: '#EDF5FB', deep: '#C7DCEC', foam: false },
-    { key: 'tea',      name: '茶道宗师', stage: '职场老人', drinkName: '茶',   score: 300, cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: false,
+    { key: 'tea',      name: '人间清醒', stage: '职场老人', drinkName: '茶',   score: 130, steps: [130, 145, 160], stages: ['观局', '知止', '不惑'], cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: false,
       line: '七分是茶，三分是分寸。', wisdom: '茶倒七分满，剩下三分是情谊。倒得太满，烫的是端杯的人。', color: '#B4692E', deep: '#8A4A1C', foam: false },
-    { key: 'warmmilk', name: '暖奶寿星', stage: '老人',     drinkName: '温奶', score: 500, cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
+    { key: 'warmmilk', name: '岁月回甘', stage: '老人',     drinkName: '温奶', score: 180, steps: [180, 210, 240], stages: ['回甘', '归简', '圆满'], cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
       line: '转了一大圈，又回到一杯奶。这一杯，敬岁月。', wisdom: '从奶瓶到酒杯又回到奶瓶。人生闭环，暖的都是同一个胃。', color: '#FFFFFF', deep: '#E3D5B5', foam: false }
   ];
 
@@ -1180,7 +1180,7 @@
       else if (typeof this !== 'undefined' && this && this.TierConfig) cfg = this.TierConfig;
     } catch (e) { cfg = null; }
     if (!cfg || !cfg.length) return;
-    var FIELDS = ['name', 'stage', 'score', 'pourRate', 'cupCount', 'line', 'wisdom'];
+    var FIELDS = ['name', 'stage', 'score', 'steps', 'stages', 'pourRate', 'cupCount', 'line', 'wisdom'];
     for (var i = 0; i < cfg.length; i++) {
       var c = cfg[i];
       if (!c || !c.key) continue;
@@ -1204,6 +1204,18 @@
     return idx;
   }
 
+  // 按累计得分计算「段位·阶」：每段 3 阶，门槛由 steps 定义
+  // 返回 { tierIdx, stageIdx, label }，label 形如 '职场新人·初入'
+  function rankFor(totalScore) {
+    var t = tierFor(totalScore);
+    var tier = TIERS[t];
+    var steps = tier.steps && tier.steps.length ? tier.steps : [tier.score];
+    var s = 0;
+    for (var i = 0; i < steps.length; i++) if (totalScore >= steps[i]) s = i;
+    var suffix = (tier.stages && tier.stages[s]) || '';
+    return { tierIdx: t, stageIdx: s, label: tier.name + (suffix ? '·' + suffix : '') };
+  }
+
   function randomDrink() {
     return DRINKS[Math.floor(Math.random() * DRINKS.length)];
   }
@@ -1225,6 +1237,7 @@
     tableProfile: tableProfile,
     TIERS: TIERS,
     tierFor: tierFor,
+    rankFor: rankFor,
     LINES: LINES,
     CUPS: CUPS
   };
