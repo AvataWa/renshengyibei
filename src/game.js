@@ -307,14 +307,17 @@
     if (didTierUp) {
       this.tierIdx = newTier;
       var t = Cups.TIERS[newTier];
-      this.floats.push({ text: '成长！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.8, color: PAL.INK });
+      this.floats.push({ text: '成长！' + newRank.label, x: this.W / 2, y: this.H * 0.265, life: 1.8, color: PAL.INK });
       this.toast(t.line);
       if (this.vibrateOn) this.env.vibrate();
     } else if (didStageUp) {
       // 段内进阶：同段位饮品/容器不变，只弹进步提示
-      this.floats.push({ text: '进步！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.5, color: PAL.INK });
+      this.floats.push({ text: '进步！' + newRank.label, x: this.W / 2, y: this.H * 0.265, life: 1.5, color: PAL.INK });
     }
-    this.floats.push({ text: '+' + pts + ' ' + label, x: this.cx, y: this.cupTop - this.H * 0.075, life: 1.2, color: basePts === 2 ? '#2EA85C' : '#E0861A' });
+    // 示意图：+N 绿色/橙色大字居中于杯上方，连击/评价黑色小字紧随其下
+    var ptsY = this.cupTop - this.H * 0.10;
+    this.floats.push({ text: '+' + pts, x: this.W / 2, y: ptsY, life: 1.4, color: basePts === 2 ? '#2EA85C' : '#E0861A', size: 0.042 });
+    this.floats.push({ text: label, x: this.W / 2, y: ptsY + this.H * 0.042, life: 1.4, color: PAL.INK, size: 0.024 });
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.phase = 'next';
@@ -342,7 +345,7 @@
   };
 
   Game.prototype.toast = function (text) {
-    this.toasts.push({ text: text, life: 1.6 });
+    this.toasts.push({ text: text, life: 2.1 }); // 显示时长 1.6 + 0.5
     if (this.toasts.length > 2) this.toasts.shift();
   };
 
@@ -1002,7 +1005,7 @@
 
   Game.prototype.drawDrinkTag = function () {
     var ctx = this.ctx;
-    var text = this.drink.name + ' · ' + this.cup.hint;
+    var text = Cups.rankFor(this.score).label; // 当前段位（替代原 饮品·杯型提示）
     ctx.font = 'bold ' + Math.round(this.H * 0.019) + 'px sans-serif';
     var tw = ctx.measureText(text).width + 32;
     var th = this.H * 0.042, x = (this.W - tw) / 2, y = this.H * 0.155;
@@ -1031,7 +1034,7 @@
       var f = this.floats[i];
       ctx.globalAlpha = Math.min(1, f.life);
       ctx.fillStyle = f.color;
-      ctx.font = 'bold ' + Math.round(this.H * 0.038) + 'px sans-serif';
+      ctx.font = 'bold ' + Math.round(this.H * (f.size || 0.038)) + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(f.text, f.x, f.y);
     }
@@ -1047,7 +1050,7 @@
       ctx.globalAlpha = a * 0.92;
       ctx.font = Math.round(this.H * 0.019) + 'px sans-serif';
       var tw = ctx.measureText(t.text).width + 36;
-      var x = (this.W - tw) / 2, y = this.H * 0.775 + i * this.H * 0.05; // 红框区：杯子下方、桌面之上
+      var x = (this.W - tw) / 2, y = this.H * 0.21 + i * this.H * 0.05; // 示意图：段位 pill 正下方
       ctx.fillStyle = 'rgba(40,40,40,0.85)';
       this.roundRect(x, y, tw, this.H * 0.036, 16);
       ctx.fill();
