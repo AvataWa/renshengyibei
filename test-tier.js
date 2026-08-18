@@ -67,7 +67,7 @@ assert.strictEqual(game.score, 0, '重开后分数应清零');
 assert.strictEqual(game.drink.name, '牛奶', '重开后第一杯应为牛奶');
 console.log('失败重开回到 0 段倒奶 OK');
 
-// 2. 主界面段位跟随历史最高分（暖奶寿星 500 分）；最高段位解锁全部 20 个杯型
+// 2. 主界面段位跟随历史最高分（暖奶寿星 500 分）；暖奶寿星回到倒奶杯池（人生闭环）
 storage = { best: '500' };
 game = new Game(makeEnv(storage));
 assert.strictEqual(game.tierIdx, 6, '历史最高 500 分应显示暖奶寿星');
@@ -75,27 +75,30 @@ game.newRound();
 assert.strictEqual(game.drink.name, '温奶', '暖奶寿星回到奶（人生闭环）');
 const seen = new Set();
 for (let i = 0; i < 600; i++) {
-  const cup = Cups.randomCupRange(Cups.TIERS[6].cupCount);
+  const cup = Cups.randomCupTier(6, Cups.TIERS[6].cupCount);
+  assert.strictEqual(cup.pool, 0, '暖奶寿星应用倒奶杯池: ' + cup.name);
   seen.add(cup.name);
 }
-assert.strictEqual(seen.size, 20, '最高段位应解锁全部 20 个杯型，实际：' + seen.size);
-console.log('最高段位杯型覆盖 OK：', seen.size, '个');
+assert.strictEqual(seen.size, 20, '倒奶杯池应有 20 个杯型，实际：' + seen.size);
+console.log('暖奶寿星杯池（=倒奶池）覆盖 OK：', seen.size, '个');
 
-// 3. 中间段位杯池不超过解锁数量（段位3 = 前 8 个）
+// 3. 段位杯池互相独立（段位3 = 红酒池前 cupCount 个，不串池）
 storage = { best: '120' };
 game = new Game(makeEnv(storage));
 assert.strictEqual(game.tierIdx, 3, '历史最高 120 分应显示红酒新秀');
 const cupCount = Cups.TIERS[3].cupCount;
-assert.strictEqual(cupCount, 16, '段位3 应解锁 16 个杯型');
 for (let i = 0; i < 400; i++) {
-  const cup = Cups.randomCupRange(cupCount);
-  assert.ok(cupIndex(cup.name) < cupCount, '杯型不应超出解锁范围: ' + cup.name);
+  const cup = Cups.randomCupTier(3, cupCount);
+  assert.strictEqual(cup.pool, 3, '红酒段位不应抽到别的杯池: ' + cup.name);
+  const winePool = Cups.CUPS.filter((c) => c.pool === 3);
+  assert.ok(winePool.indexOf(cup) < cupCount, '杯型不应超出杯池前 N 个: ' + cup.name);
 }
-console.log('段位3杯型范围 OK（cupCount =', cupCount, '）');
+console.log('段位3独立杯池 OK（红酒池取前', cupCount, '个）');
 
-// 4. 每局第一杯固定简单杯型
+// 4. 每局第一杯固定从本段杯池最简单 3 个里出
 game.newRound();
-assert.ok(SIMPLE.includes(game.cup.name), '每局第一杯应为简单杯型');
+const tier3Simple = Cups.CUPS.filter((c) => c.pool === 3).slice(0, 3).map((c) => c.name);
+assert.ok(tier3Simple.includes(game.cup.name), '每局第一杯应为本段杯池的简单杯型');
 
 // 5. 菜单徽章 + 结算段位行渲染不报错
 game.state = 'menu'; game.render();

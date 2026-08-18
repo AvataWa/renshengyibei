@@ -234,12 +234,12 @@
     this.round++;
     var tier = Cups.TIERS[this.tierIdx];
     this.tier = tier; // 当前段位（倒水速度等按段位配置取值）
-    // 每局第一杯固定从最简单的杯型出；之后按段位解锁数量随机
+    // 每局第一杯从本段杯池最简单的 3 个里出；之后按段位独立杯池随机（pool 字段）
     // 不与上一杯重复（杯池 >1 时重抽，最多 6 次）
-    var cup = this.round === 1 ? Cups.randomCup(0) : Cups.randomCupRange(tier.cupCount);
+    var cup = this.round === 1 ? Cups.randomCupTier(this.tierIdx, 3) : Cups.randomCupTier(this.tierIdx, tier.cupCount);
     var guard = 0;
     while (this.lastCup && cup.name === this.lastCup.name && guard++ < 6) {
-      cup = Cups.randomCupRange(tier.cupCount);
+      cup = Cups.randomCupTier(this.tierIdx, tier.cupCount);
     }
     this.cup = cup;
     this.lastCup = cup;

@@ -68,6 +68,10 @@
   <div class="row"><label>高宽比</label><input type="range" id="fAspect" min="0.4" max="3.2" step="0.05"><span class="val" id="vAspect"></span></div>
   <div class="row"><label>大小</label><input type="range" id="fSize" min="0.6" max="1.4" step="0.02"><span class="val" id="vSize"></span></div>
   <div class="row"><label>高脚杯</label><input type="checkbox" id="fStem"></div>
+  <div class="row"><label>所属段位</label><select id="fPool" style="flex:1;padding:6px;border:1px solid #ddd6c4;border-radius:6px;font-size:13px">
+    <option value="0">倒奶</option><option value="1">可乐</option><option value="2">啤酒</option>
+    <option value="3">红酒</option><option value="4">白酒</option><option value="5">茶</option>
+  </select></div>
   <h3>合格区（完美区自动取顶部 1/3）</h3>
   <div class="row"><label>下限</label><input type="range" id="fQlo" min="0.1" max="0.9" step="0.01"><span class="val" id="vQlo"></span></div>
   <div class="row"><label>上限</label><input type="range" id="fQhi" min="0.3" max="1.0" step="0.01"><span class="val" id="vQhi"></span></div>
@@ -131,6 +135,7 @@
       index: index,
       name: cup.name, hint: cup.hint,
       aspect: cup.aspect, size: cup.size || 1, stem: !!cup.stem,
+      pool: cup.pool || 0,
       qlo: cup.zones.q[0], qhi: cup.zones.q[1],
       pts: sampleProfile(cup.profile),
       pass: pass, deco: deco
@@ -147,7 +152,7 @@
     for (var k in DECO_DEF) if (k !== 'handle') deco[k] = DECO_DEF[k];
     deco.handle = { on: false, t1: 0.82, t2: 0.45, out: 0.62 };
     cur = { index: null, name: '新杯型', hint: '八分满', aspect: 1.4, size: 1.0,
-            stem: false, qlo: 0.62, qhi: 0.86, pts: pts, pass: {}, deco: deco };
+            stem: false, pool: cur ? cur.pool : 0, qlo: 0.62, qhi: 0.86, pts: pts, pass: {}, deco: deco };
     snapshot = JSON.parse(JSON.stringify(cur));
     syncPanel(); draw(); drawSpeed(); genCode(); renderList();
   }
@@ -391,7 +396,7 @@
     var lines = [];
     lines.push('    {');
     lines.push("      name: '" + cur.name + "', hint: '" + cur.hint + "', aspect: " + (+cur.aspect.toFixed(2)) +
-               ', stem: ' + cur.stem + ', size: ' + (+cur.size.toFixed(2)) + ',');
+               ', stem: ' + cur.stem + ', size: ' + (+cur.size.toFixed(2)) + ', pool: ' + cur.pool + ',');
     PASS_FIELDS.forEach(function (f) {
       if (cur.pass[f] !== undefined) {
         var v = cur.pass[f];
@@ -432,6 +437,7 @@
     $('fName').value = cur.name; $('fHint').value = cur.hint;
     $('fAspect').value = cur.aspect; $('fSize').value = cur.size;
     $('fStem').checked = cur.stem;
+    $('fPool').value = String(cur.pool);
     $('fQlo').value = cur.qlo; $('fQhi').value = cur.qhi;
     $('fWall').value = cur.deco.wall;
     $('fWallW').value = cur.deco.wallW; $('fGlass').value = cur.deco.glass;
@@ -469,6 +475,7 @@
   bindField('fAspect', 'aspect', true); bindField('fSize', 'size', true);
   bindField('fQlo', 'qlo', true); bindField('fQhi', 'qhi', true);
   $('fStem').addEventListener('change', function () { cur.stem = this.checked; draw(); genCode(); });
+  $('fPool').addEventListener('change', function () { cur.pool = parseInt(this.value, 10); genCode(); renderList(); });
   bindDeco('fWall', 'wall', 'str'); bindDeco('fWallW', 'wallW', 'num');
   bindDeco('fGlass', 'glass', 'num'); bindDeco('fTicks', 'ticks', 'int');
   bindDeco('fDash', 'dash', 'bool');
@@ -514,18 +521,16 @@
   });
   cv.addEventListener('pointerup', function () { dragIdx = -1; dragHandle = null; draw(); });
 
-  // ---------- 列表 ----------
-  var TIER_LABELS = ['段位0 · 倒奶', '段位1 · 可乐', '段位2 · 啤酒', '段位3 · 红酒', '段位4 · 白酒', '段位5 · 茶', '段位6 · 温奶'];
+  // ---------- 列表（按段位独立杯池分组） ----------
+  var TIER_LABELS = ['倒奶 · 奶瓶萌新', '可乐 · 可乐少年', '啤酒 · 啤酒青年', '红酒 · 红酒新秀', '白酒 · 白酒骨干', '茶 · 茶道宗师'];
   function renderList() {
-    var box = $('items'), html = '', unlock = 10;
+    var box = $('items'), html = '', lastPool = -1;
     for (var i = 0; i < Cups.CUPS.length; i++) {
-      if (i === 0) html += '<div class="grp">' + TIER_LABELS[0] + '</div>';
-      else if (i === unlock) {
-        var tier = Math.min(((i - 10) / 2 | 0) + 1, 6);
-        html += '<div class="grp">' + TIER_LABELS[tier] + ' 解锁</div>';
-        unlock += 2;
+      var c = Cups.CUPS[i], pool = c.pool || 0;
+      if (pool !== lastPool) {
+        lastPool = pool;
+        html += '<div class="grp">段位' + pool + ' · ' + (TIER_LABELS[pool] || '未知') + '</div>';
       }
-      var c = Cups.CUPS[i];
       html += '<div class="item' + (cur && cur.index === i ? ' on' : '') + '" data-i="' + i + '">' +
               c.name + '<div class="sub">' + c.hint + ' · 高宽比 ' + c.aspect + '</div></div>';
     }
