@@ -321,7 +321,7 @@
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.phase = 'next';
-    this.phaseTimer = 0.9;
+    this.phaseTimer = 0; // 倒完即开下一杯，无延迟（加分/连击浮字有自己的存续时间，不受影响）
   };
 
   Game.prototype.fail = function (reason) {
