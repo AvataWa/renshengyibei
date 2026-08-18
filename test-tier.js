@@ -100,10 +100,11 @@ game.newRound();
 const tier3Simple = Cups.CUPS.filter((c) => c.pool === 3).slice(0, 3).map((c) => c.name);
 assert.ok(tier3Simple.includes(game.cup.name), '每局第一杯应为本段杯池的简单杯型');
 
-// 4b. 「段位·阶」标签：每段 3 阶，按 steps 门槛晋升
-assert.strictEqual(Cups.rankFor(0).label, '人类幼崽·喝奶');
-assert.strictEqual(Cups.rankFor(4).label, '人类幼崽·学步');
-assert.strictEqual(Cups.rankFor(9).label, '人类幼崽·入园'); // 9 < 10 跨段门槛 → 奶段三阶
+// 4b. 「段位·阶」标签：前三段不分阶（仅段位名），后几段按 steps 门槛晋升
+assert.strictEqual(Cups.rankFor(0).label, '人类幼崽');
+assert.strictEqual(Cups.rankFor(4).label, '人类幼崽');
+assert.strictEqual(Cups.rankFor(9).label, '人类幼崽');
+assert.strictEqual(Cups.rankFor(30).label, '未来可期'); // 啤酒段不分阶
 assert.strictEqual(Cups.rankFor(55).label, '职场新人·初入');
 assert.strictEqual(Cups.rankFor(65).label, '职场新人·上手');
 assert.strictEqual(Cups.rankFor(75).label, '职场新人·转正');

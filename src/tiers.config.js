@@ -25,21 +25,21 @@
   return [
     {
       key: 'milk', name: '人类幼崽', stage: '小孩',
-      score: 0, steps: [0, 4, 8], stages: ['喝奶', '学步', '入园'],
+      score: 0,
       pourRate: 0.3, cupCount: 20,
       line: '人生的第一杯，要稳稳的。',
       wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。'
     },
     {
       key: 'cola', name: '元气少年', stage: '上学',
-      score: 10, steps: [10, 15, 20], stages: ['开学', '期末', '升学'],
+      score: 10,
       pourRate: 0.45, cupCount: 12,
       line: '快乐水配暑假，倒多少都是自由。',
       wisdom: '气泡再欢腾也会散去，快乐水教我的事：趁有气，大口喝。'
     },
     {
       key: 'beer', name: '未来可期', stage: '大学/毕业',
-      score: 25, steps: [25, 35, 45], stages: ['迎新', '逐梦', '毕业'],
+      score: 25,
       pourRate: 0.5, cupCount: 14,
       line: '泡沫升起来的时候，青春也是。',
       wisdom: '泡沫是啤酒的皇冠，也是青春的——看着满，抿一口才知真假。'

@@ -307,12 +307,12 @@
     if (didTierUp) {
       this.tierIdx = newTier;
       var t = Cups.TIERS[newTier];
-      this.floats.push({ text: '升段！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.8, color: PAL.INK });
+      this.floats.push({ text: '成长！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.8, color: PAL.INK });
       this.toast(t.line);
       if (this.vibrateOn) this.env.vibrate();
     } else if (didStageUp) {
-      // 段内进阶：同段位饮品/容器不变，只弹进阶提示
-      this.floats.push({ text: '进阶！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.5, color: PAL.INK });
+      // 段内进阶：同段位饮品/容器不变，只弹进步提示
+      this.floats.push({ text: '进步！' + newRank.label, x: this.W / 2, y: this.H * 0.32, life: 1.5, color: PAL.INK });
     }
     this.floats.push({ text: '+' + pts + ' ' + label, x: this.cx, y: this.cupTop - this.H * 0.075, life: 1.2, color: basePts === 2 ? '#2EA85C' : '#E0861A' });
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
@@ -983,12 +983,7 @@
 
   Game.prototype.drawScoreHUD = function () {
     var ctx = this.ctx;
-    // 当前「段位·阶」：左上角纯文本（随本局得分即时变化）
-    ctx.textAlign = 'left';
-    ctx.font = 'bold ' + Math.round(this.H * 0.02) + 'px sans-serif';
-    ctx.fillStyle = PAL.MUTED;
-    ctx.fillText(Cups.rankFor(this.score).label, 14, this.H * 0.052);
-    // 历史最高：右上角纯文本
+    // 历史最高：右上角纯文本（局内不显示段位，保持专注）
     ctx.textAlign = 'right';
     ctx.font = Math.round(this.H * 0.02) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
@@ -1062,10 +1057,9 @@
     ctx.globalAlpha = 1;
   };
 
-  // ---------------- 主界面（卡片化 · 参考智能家居风） ----------------
+  // ---------------- 主界面（极简 · 点击屏幕开始） ----------------
   Game.prototype.drawMenu = function () {
     var ctx = this.ctx, W = this.W, H = this.H;
-    var tier = Cups.TIERS[this.tierIdx];
     var mx = W * 0.09; // 左右边距
 
     // 标题（左对齐）+ 副标语
@@ -1083,63 +1077,25 @@
       var aspect = heroes.img.width / heroes.img.height;
       var hh = Math.min(H * 0.235, W * 0.92 / aspect);
       var hw = hh * aspect;
-      var hBottom = H * 0.40;
+      var hBottom = H * 0.44;
       ctx.drawImage(heroes.img, (W - hw) / 2, hBottom - hh, hw, hh);
     }
 
-    // —— 黑色段位主卡（带黄色开始键，只显示段位名） ——
-    var cw1 = W * 0.50, ch1 = H * 0.155, cx1 = mx, cy1 = H * 0.415;
-    ctx.fillStyle = 'rgba(43,42,38,0.12)';
-    this.roundRect(cx1, cy1 + 4, cw1, ch1, 24);
-    ctx.fill();
+    // —— 点击屏幕开始（呼吸感） ——
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.75 + 0.25 * Math.sin(this.time * 3);
     ctx.fillStyle = PAL.INK;
-    this.roundRect(cx1, cy1, cw1, ch1, 24);
-    ctx.fill();
-    ctx.textAlign = 'left';
-    ctx.fillStyle = PAL.CARD_DIM;
-    ctx.font = Math.round(H * 0.016) + 'px sans-serif';
-    ctx.fillText('最高段位', cx1 + W * 0.05, cy1 + ch1 * 0.32);
-    ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold ' + Math.round(H * 0.032) + 'px sans-serif';
-    ctx.fillText(Cups.rankFor(this.best).label, cx1 + W * 0.05, cy1 + ch1 * 0.72);
-    // 黄色开始键（呼吸效果）
-    var pulse = 1 + 0.06 * Math.sin(this.time * 4);
-    var pr = W * 0.075 * pulse, pxc = cx1 + cw1 - W * 0.10, pyc = cy1 + ch1 / 2;
-    ctx.fillStyle = PAL.YEL;
-    ctx.beginPath(); ctx.arc(pxc, pyc, pr, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = PAL.INK;
-    ctx.beginPath();
-    ctx.moveTo(pxc - pr * 0.25, pyc - pr * 0.42);
-    ctx.lineTo(pxc - pr * 0.25, pyc + pr * 0.42);
-    ctx.lineTo(pxc + pr * 0.48, pyc);
-    ctx.closePath(); ctx.fill();
+    ctx.fillText('点击屏幕开始', W / 2, H * 0.56);
+    ctx.globalAlpha = 1;
 
-    // —— 白卡：历史最高（与段位卡同高并排） ——
-    var cw2 = W - mx * 2 - cw1 - W * 0.04, cx2 = W - mx - cw2, ch2 = ch1, cy2 = cy1;
-    ctx.fillStyle = PAL.CARD;
-    this.roundRect(cx2, cy2, cw2, ch2, 20);
-    ctx.fill();
-    ctx.fillStyle = PAL.MUTED;
-    ctx.font = Math.round(H * 0.015) + 'px sans-serif';
-    ctx.fillText('历史最高', cx2 + W * 0.045, cy2 + ch2 * 0.32);
+    // —— 历史最高 + 当前段位（一行，居中） ——
+    ctx.font = 'bold ' + Math.round(H * 0.022) + 'px sans-serif';
+    var bestTxt = this.best > 0 ? String(this.best) : '—';
     ctx.fillStyle = PAL.INK;
-    ctx.font = 'bold ' + Math.round(H * 0.038) + 'px sans-serif';
-    ctx.fillText(this.best > 0 ? String(this.best) : '—', cx2 + W * 0.045, cy2 + ch2 * 0.74);
-
-    // —— 通栏白卡：操作方式 ——
-    var cy4 = cy1 + ch1 + H * 0.025, ch4 = H * 0.105;
-    ctx.fillStyle = PAL.CARD;
-    this.roundRect(mx, cy4, W - mx * 2, ch4, 22);
-    ctx.fill();
-    ctx.fillStyle = PAL.MUTED;
-    ctx.font = Math.round(H * 0.015) + 'px sans-serif';
-    ctx.fillText('操作方式', mx + W * 0.05, cy4 + ch4 * 0.36);
-    ctx.fillStyle = PAL.INK;
-    ctx.font = 'bold ' + Math.round(H * 0.021) + 'px sans-serif';
-    ctx.fillText('按住屏幕倒水 · 松手停止', mx + W * 0.05, cy4 + ch4 * 0.72);
+    ctx.fillText('历史最高 ' + bestTxt + '　' + Cups.rankFor(this.best).label, W / 2, H * 0.755);
 
     // 四个按钮：商城 / 分享 / 排名 / 设置（白底圆钮 + 柔影 + 墨色字）
-    ctx.textAlign = 'center';
     for (var i = 0; i < this.menuButtons.length; i++) {
       var b = this.menuButtons[i];
       ctx.fillStyle = 'rgba(43,42,38,0.12)';

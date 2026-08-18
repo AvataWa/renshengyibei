@@ -1151,11 +1151,11 @@
   // 每个段位有独立的 20 个杯型池（cup.pool），cupCount = 从本段杯池取前 N 个（默认 20）；
   // 岁月回甘（warmmilk）回到倒奶杯池——人生闭环。
   var TIERS = [
-    { key: 'milk',     name: '人类幼崽', stage: '小孩',     drinkName: '牛奶', score: 0,   steps: [0, 4, 8], stages: ['喝奶', '学步', '入园'], cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
+    { key: 'milk',     name: '人类幼崽', stage: '小孩',     drinkName: '牛奶', score: 0,   cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
       line: '人生的第一杯，要稳稳的。', wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。', color: '#FFFFFF', deep: '#E3D5B5', foam: false },
-    { key: 'cola',     name: '元气少年', stage: '上学',     drinkName: '可乐', score: 10,  steps: [10, 15, 20], stages: ['开学', '期末', '升学'], cupCount: 20, pourRate: 0.338, alpha: 0.90, bubbles: true,
+    { key: 'cola',     name: '元气少年', stage: '上学',     drinkName: '可乐', score: 10,  cupCount: 20, pourRate: 0.338, alpha: 0.90, bubbles: true,
       line: '快乐水配暑假，倒多少都是自由。', wisdom: '气泡再欢腾也会散去，快乐水教我的事：趁有气，大口喝。', color: '#40251A', deep: '#241209', foam: false },
-    { key: 'beer',     name: '未来可期', stage: '大学/毕业', drinkName: '啤酒', score: 25,  steps: [25, 35, 45], stages: ['迎新', '逐梦', '毕业'], cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: true,
+    { key: 'beer',     name: '未来可期', stage: '大学/毕业', drinkName: '啤酒', score: 25,  cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: true,
       line: '泡沫升起来的时候，青春也是。', wisdom: '泡沫是啤酒的皇冠，也是青春的——看着满，抿一口才知真假。', color: '#F2B33D', deep: '#D98E1B', foam: true },
     { key: 'wine',     name: '职场新人', stage: '职场新人', drinkName: '红酒', score: 55,  steps: [55, 65, 75], stages: ['初入', '上手', '转正'], cupCount: 20, pourRate: 0.338, alpha: 0.82, bubbles: false,
       line: '只倒三分之一——职场第一课：留余地。', wisdom: '红酒只倒三分满。杯留余地，人也留余地，香气才进得来。', color: '#8E2434', deep: '#6B1424', foam: false },
