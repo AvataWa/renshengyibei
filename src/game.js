@@ -111,15 +111,14 @@
   // ---------------- UI 布局 ----------------
   Game.prototype.layoutUI = function () {
     var W = this.W, H = this.H;
-    // 主界面四个按钮
+    // 主界面三个按钮（商城暂时隐藏，避免备案/审核期误会）
     var r = Math.min(W * 0.095, 46);
-    var gap = W / 5;
+    var gap = W / 4;
     var by = H * 0.86;
     this.menuButtons = [
-      { key: 'shop', label: '商城', color: '#F6A83C', x: gap * 1, y: by, r: r },
-      { key: 'share', label: '分享', color: '#4CC36A', x: gap * 2, y: by, r: r },
-      { key: 'rank', label: '排名', color: '#5B8DEF', x: gap * 3, y: by, r: r },
-      { key: 'settings', label: '设置', color: '#9B7FD4', x: gap * 4, y: by, r: r }
+      { key: 'share', label: '分享', color: '#4CC36A', x: gap * 1, y: by, r: r },
+      { key: 'rank', label: '排名', color: '#5B8DEF', x: gap * 2, y: by, r: r },
+      { key: 'settings', label: '设置', color: '#9B7FD4', x: gap * 3, y: by, r: r }
     ];
     // 结算界面按钮（主按钮黄、次按钮白）
     var bw = W * 0.62, bh = H * 0.068, bx = (W - bw) / 2;
@@ -187,7 +186,7 @@
 
   Game.prototype.handleMenuButton = function (key) {
     if (key === 'share') {
-      this.env.share('人生一杯：从小孩倒奶到老人喝奶，看你倒到哪一段！');
+      this.env.share('这一杯敬给自己：从小孩倒奶到老人喝奶，看你倒到哪一段！');
       this.toast('已发起分享');
       return;
     }
@@ -222,7 +221,7 @@
     if (key === 'retry') this.startGame();
     else if (key === 'home') { this.state = 'menu'; this.overlay = null; this.tierIdx = Cups.tierFor(this.best); }
     else if (key === 'share') {
-      this.env.share('我在人生一杯倒了 ' + this.score + ' 分，你敢来挑战吗？');
+      this.env.share('我在「这一杯敬给自己」倒了 ' + this.score + ' 分，你敢来挑战吗？');
       this.toast('已发起分享');
     }
   };
@@ -319,12 +318,12 @@
     if (didTierUp) {
       this.tierIdx = newTier;
       var t = Cups.TIERS[newTier];
-      this.floats.push({ text: '成长！' + newRank.label, x: this.W / 2, y: this.H * 0.265, life: 1.8, color: PAL.INK });
+      this.floats.push({ text: '成长！' + newRank.label, x: this.W / 2, y: this.hudShift() + this.H * 0.265, life: 1.8, color: PAL.INK });
       this.toast(t.line);
       if (this.vibrateOn) this.env.vibrate();
     } else if (didStageUp) {
       // 段内进阶：同段位饮品/容器不变，只弹进步提示
-      this.floats.push({ text: '进步！' + newRank.label, x: this.W / 2, y: this.H * 0.265, life: 1.5, color: PAL.INK });
+      this.floats.push({ text: '进步！' + newRank.label, x: this.W / 2, y: this.hudShift() + this.H * 0.265, life: 1.5, color: PAL.INK });
     }
     // 示意图：+N 绿色/橙色大字居中于杯上方，连击/评价黑色小字紧随其下
     var ptsY = this.cupTop - this.H * 0.10;
@@ -1006,23 +1005,32 @@
     ctx.globalAlpha = 1;
   };
 
+  // 刘海让位偏移：safeTop 超出普通状态栏基础高度(0.02H)的部分才下移，非刘海机几乎不变
+  Game.prototype.hudShift = function () {
+    var st = (this.env.safeTop || 0);
+    return Math.max(0, Math.min(st - this.H * 0.02, this.H * 0.04));
+  };
+
   Game.prototype.drawScoreHUD = function () {
     var ctx = this.ctx;
-    // 历史最高：右上角纯文本（局内不显示段位，保持专注）
-    ctx.textAlign = 'right';
+    var dy = this.hudShift();
+    // 历史最高：左上角纯文本（避开右上角微信胶囊按钮；局内不显示段位，保持专注）
+    ctx.textAlign = 'left';
     ctx.font = Math.round(this.H * 0.02) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
-    ctx.fillText('历史最高 ', this.W - 14 - ctx.measureText(String(this.best)).width - 6, this.H * 0.052);
+    var bestLabel = '历史最高 ';
+    ctx.fillText(bestLabel, 14, dy + this.H * 0.052);
+    var blw = ctx.measureText(bestLabel).width;
     ctx.fillStyle = PAL.INK;
     ctx.font = 'bold ' + Math.round(this.H * 0.02) + 'px sans-serif';
-    ctx.fillText(String(this.best), this.W - 14, this.H * 0.052);
+    ctx.fillText(String(this.best), 14 + blw + 4, dy + this.H * 0.052);
     // 大分数 + 第 X 杯（居中）
     ctx.textAlign = 'center';
     ctx.fillStyle = PAL.INK;
     ctx.font = 'bold ' + Math.round(this.H * 0.062) + 'px sans-serif';
-    ctx.fillText(String(this.score), this.W / 2, this.H * 0.075);
+    ctx.fillText(String(this.score), this.W / 2, dy + this.H * 0.075);
     ctx.font = 'bold ' + Math.round(this.H * 0.032) + 'px sans-serif';
-    ctx.fillText('第 ' + this.round + ' 杯', this.W / 2, this.H * 0.125);
+    ctx.fillText('第 ' + this.round + ' 杯', this.W / 2, dy + this.H * 0.125);
   };
 
   Game.prototype.drawDrinkTag = function () {
@@ -1030,7 +1038,7 @@
     var text = Cups.rankFor(this.score).label; // 当前段位（替代原 饮品·杯型提示）
     ctx.font = 'bold ' + Math.round(this.H * 0.019) + 'px sans-serif';
     var tw = ctx.measureText(text).width + 32;
-    var th = this.H * 0.042, x = (this.W - tw) / 2, y = this.H * 0.155;
+    var th = this.H * 0.042, x = (this.W - tw) / 2, y = this.hudShift() + this.H * 0.155;
     ctx.fillStyle = PAL.CARD;
     this.roundRect(x, y, tw, th, th / 2);
     ctx.fill();
@@ -1072,7 +1080,7 @@
       ctx.globalAlpha = a * 0.92;
       ctx.font = Math.round(this.H * 0.019) + 'px sans-serif';
       var tw = ctx.measureText(t.text).width + 36;
-      var x = (this.W - tw) / 2, y = this.H * 0.21 + i * this.H * 0.05; // 示意图：段位 pill 正下方
+      var x = (this.W - tw) / 2, y = this.hudShift() + this.H * 0.21 + i * this.H * 0.05; // 示意图：段位 pill 正下方
       ctx.fillStyle = 'rgba(40,40,40,0.85)';
       this.roundRect(x, y, tw, this.H * 0.036, 16);
       ctx.fill();
@@ -1087,14 +1095,21 @@
     var ctx = this.ctx, W = this.W, H = this.H;
     var mx = W * 0.09; // 左右边距
 
-    // 标题（左对齐）+ 副标语
+    // 标题（左对齐，7字标题自适应缩字号防溢出）+ 副标语（刘海让位）
+    var dy = this.hudShift();
     ctx.textAlign = 'left';
     ctx.fillStyle = PAL.INK;
-    ctx.font = 'bold ' + Math.round(H * 0.062) + 'px sans-serif';
-    ctx.fillText('人生一杯', mx, H * 0.115);
+    var title = '这一杯敬给自己';
+    var tSize = Math.round(H * 0.062);
+    ctx.font = 'bold ' + tSize + 'px sans-serif';
+    while (tSize > 12 && ctx.measureText(title).width > W - mx * 2) {
+      tSize -= 2;
+      ctx.font = 'bold ' + tSize + 'px sans-serif';
+    }
+    ctx.fillText(title, mx, dy + H * 0.115);
     ctx.font = Math.round(H * 0.022) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
-    ctx.fillText('这一杯敬自己', mx, H * 0.152);
+    ctx.fillText('人生一杯', mx, dy + H * 0.152);
 
     // —— 容器英雄图：奶盒/可乐瓶/啤酒瓶/茶壶 前后错落 ——
     var heroes = this.assets.heroes;
@@ -1202,12 +1217,13 @@
         ctx.fillStyle = PAL.MUTED;
         ctx.fillText('好友排行 · 每破纪录自动更新', W / 2, py + ph - H * 0.02);
       } else {
-        // 浏览器预览：本机数据兜底
+        // 排行榜不可用（非微信环境/未同意隐私协议/加载中）：本机成绩兜底
+        var rankErr = this.env.rankError ? this.env.rankError() : '';
         ctx.fillText('本机最高分：' + this.best, W / 2, py + H * 0.115);
         ctx.fillText('累计成功：' + this.totalCups + ' 杯', W / 2, py + H * 0.155);
-        ctx.font = Math.round(H * 0.017) + 'px sans-serif';
+        ctx.font = Math.round(H * 0.016) + 'px sans-serif';
         ctx.fillStyle = PAL.MUTED;
-        ctx.fillText('微信小游戏内显示好友排行榜', W / 2, py + H * 0.195);
+        ctx.fillText(rankErr === '未同意隐私协议，好友排行不可用' ? rankErr : '好友排行加载中…', W / 2, py + H * 0.195);
       }
     } else {
       // 震动开关

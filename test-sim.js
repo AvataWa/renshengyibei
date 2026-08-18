@@ -40,21 +40,18 @@ function step(seconds) {
   for (let t = 0; t < seconds; t += dt) { game.update(dt); game.render(); }
 }
 
-// 1. 主界面渲染 + 按钮
+// 1. 主界面渲染 + 按钮（商城已隐藏：0=分享 1=排名 2=设置）
 step(1);
-env._press(game.menuButtons[0].x, game.menuButtons[0].y); // 商城
+env._press(game.menuButtons[1].x, game.menuButtons[1].y); // 排名
 step(0.2);
 env._press(game.W / 2, game.overlayClose.y + 5); // 关闭
 step(0.2);
-env._press(game.menuButtons[2].x, game.menuButtons[2].y); // 排名
-step(0.2);
-env._press(game.W / 2, game.overlayClose.y + 5);
-env._press(game.menuButtons[3].x, game.menuButtons[3].y); // 设置
+env._press(game.menuButtons[2].x, game.menuButtons[2].y); // 设置
 step(0.2);
 if (game.vibrateToggle) env._press(game.vibrateToggle.x + 5, game.vibrateToggle.y + 5); // 切换震动
 step(0.2);
 env._press(game.W / 2, game.overlayClose.y + 5);
-env._press(game.menuButtons[1].x, game.menuButtons[1].y); // 分享
+env._press(game.menuButtons[0].x, game.menuButtons[0].y); // 分享
 step(0.2);
 console.log('菜单流程 OK, overlay =', game.overlay);
 

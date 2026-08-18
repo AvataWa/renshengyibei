@@ -18,9 +18,8 @@
   }
 
   function drawList(list, w, h, dpr) {
-    // 重设尺寸会清空画布并重置状态，需先设置再缩放
-    sharedCanvas.width = w * dpr;
-    sharedCanvas.height = h * dpr;
+    // 尺寸由主域设置（重设会清空画布并重置状态），这里只需重新缩放
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
     ctx.fillStyle = '#FFFFFF';
@@ -101,21 +100,40 @@
   wx.onMessage(function (msg) {
     if (!msg || msg.cmd !== 'render') return;
     var w = msg.w || 300, h = msg.h || 200, dpr = msg.dpr || 1;
-    wx.getFriendCloudStorage({
-      keyList: ['score'],
-      success: function (res) {
-        var list = (res.data || []).map(function (it) {
-          var kv = it.KVDataList || [];
-          var score = 0;
-          for (var i = 0; i < kv.length; i++) {
-            if (kv[i].key === 'score') score = parseInt(kv[i].value, 10) || 0;
-          }
-          return { nickname: it.nickname, avatarUrl: it.avatarUrl, score: score };
-        });
-        list.sort(function (a, b) { return b.score - a.score; });
-        drawList(list, w, h, dpr);
-      },
-      fail: function () { drawList([], w, h, dpr); }
-    });
+    try {
+      wx.getFriendCloudStorage({
+        keyList: ['score'],
+        success: function (res) {
+          try {
+            var list = (res.data || []).map(function (it) {
+              var kv = it.KVDataList || [];
+              var score = 0;
+              for (var i = 0; i < kv.length; i++) {
+                if (kv[i].key === 'score') score = parseInt(kv[i].value, 10) || 0;
+              }
+              return { nickname: it.nickname, avatarUrl: it.avatarUrl, score: score };
+            });
+            list.sort(function (a, b) { return b.score - a.score; });
+            drawList(list, w, h, dpr);
+          } catch (e) { drawErr(e, w, h, dpr); }
+        },
+        fail: function (err) { drawErr((err && err.errMsg) || 'getFriendCloudStorage fail', w, h, dpr); }
+      });
+    } catch (e) { drawErr(e, w, h, dpr); }
   });
+
+  // 拉取失败兜底：友好提示（不再暴露错误细节）
+  function drawErr(e, w, h, dpr) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#FFFFFF';
+    roundRect(0, 0, w, h, 10);
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#8A857A';
+    ctx.font = Math.round(h * 0.055) + 'px sans-serif';
+    ctx.fillText('排行榜暂时加载失败', w / 2, h * 0.44);
+    ctx.fillText('请稍后再来', w / 2, h * 0.58);
+  }
 })();
