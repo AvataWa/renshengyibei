@@ -1118,6 +1118,13 @@
     ]
   };
 
+  // 优先使用外部大文案库（src/lines.js，每饮品 200 句）；加载失败则静默回落上方内置小库
+  try {
+    var ext = (typeof DrinkLines !== 'undefined') ? DrinkLines
+      : (typeof module !== 'undefined' && module.exports ? require('./lines.js') : null);
+    if (ext && ext.milk && Array.isArray(ext.milk) && ext.milk.length > 0) LINES = ext;
+  } catch (e) { /* 忽略，沿用内置文案 */ }
+
   function randomLine(key) {
     var arr = LINES[key] || LINES.milk;
     return arr[Math.floor(Math.random() * arr.length)];

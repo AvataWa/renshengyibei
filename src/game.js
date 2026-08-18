@@ -1047,7 +1047,7 @@
       ctx.globalAlpha = a * 0.92;
       ctx.font = Math.round(this.H * 0.019) + 'px sans-serif';
       var tw = ctx.measureText(t.text).width + 36;
-      var x = (this.W - tw) / 2, y = this.H * 0.40 + i * this.H * 0.05;
+      var x = (this.W - tw) / 2, y = this.H * 0.775 + i * this.H * 0.05; // 红框区：杯子下方、桌面之上
       ctx.fillStyle = 'rgba(40,40,40,0.85)';
       this.roundRect(x, y, tw, this.H * 0.036, 16);
       ctx.fill();
