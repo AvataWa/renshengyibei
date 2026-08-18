@@ -10,5 +10,34 @@
     "postcss": false,
     "urlCheck": false
   },
-  "srcMiniprogramRoot": "./"
+  "srcMiniprogramRoot": "./",
+  "packOptions": {
+    "ignore": [
+      { "type": "folder", "value": ".git" },
+      { "type": "folder", "value": "mockups" },
+      { "type": "folder", "value": "doc-media" },
+      { "type": "folder", "value": "drinks" },
+      { "type": "folder", "value": "style-options" },
+      { "type": "file", "value": "index.html" },
+      { "type": "file", "value": "cup-editor.html" },
+      { "type": "file", "value": "server.js" },
+      { "type": "file", "value": "play-lan.js" },
+      { "type": "file", "value": "package.json" },
+      { "type": "file", "value": "mockups.py" },
+      { "type": "file", "value": "preview-containers.py" },
+      { "type": "file", "value": "preview-water.py" },
+      { "type": "file", "value": "process-containers.py" },
+      { "type": "file", "value": "preview-water-v2.png" },
+      { "type": "file", "value": "test-sim.js" },
+      { "type": "file", "value": "test-tier.js" },
+      { "type": "file", "value": "test-tune.js" },
+      { "type": "file", "value": "倒水游戏策划案.docx" },
+      { "type": "file", "value": "手机试玩.bat" },
+      { "type": "file", "value": "部署更新.bat" },
+      { "type": "file", "value": "assets/bg.png" },
+      { "type": "file", "value": "assets/mascot.png" },
+      { "type": "file", "value": "assets/icon.png" },
+      { "type": "file", "value": "assets/share.png" }
+    ]
+  }
 }

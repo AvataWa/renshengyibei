@@ -1,6 +1,7 @@
 {
   "deviceOrientation": "portrait",
   "showStatusBar": false,
+  "openDataContext": "openDataContext",
   "networkTimeout": {
     "request": 10000
   }

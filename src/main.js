@@ -24,6 +24,22 @@
 
     var W = sysInfo.windowWidth, H = sysInfo.windowHeight;
     var dpr = sysInfo.pixelRatio || 1;
+
+    // 微信：开启右上角分享菜单 + 默认转发卡片 + 朋友圈分享
+    if (isWx) {
+      try {
+        wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
+        wx.onShareAppMessage(function () {
+          return { title: '人生一杯：从小孩倒奶到老人喝奶，看你倒到哪一段！', imageUrl: 'assets/share.jpg' };
+        });
+        if (wx.onShareTimeline) {
+          wx.onShareTimeline(function () {
+            return { title: '人生一杯：这一杯敬自己', imageUrl: 'assets/share.jpg' };
+          });
+        }
+      } catch (e) {}
+    }
+
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     if (!isWx) {
@@ -67,6 +83,8 @@
       pose = { tier: tm ? parseInt(tm[1], 10) : 0 };
     }
 
+    var rankShared = null; // 排行榜共享画布（微信开放数据域）
+
     var env = {
       canvas: canvas,
       ctx: ctx,
@@ -101,8 +119,25 @@
         ? function () { try { wx.vibrateShort({ type: 'medium' }); } catch (e) {} }
         : function () { try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {} },
       share: isWx
-        ? function (title) { try { wx.shareAppMessage({ title: title, imageUrl: 'assets/share.png' }); } catch (e) {} }
-        : function (title) { console.log('[分享]', title); }
+        ? function (title) { try { wx.shareAppMessage({ title: title, imageUrl: 'assets/share.jpg' }); } catch (e) {} }
+        : function (title) { console.log('[分享]', title); },
+      // 好友排行：最高分上报微信托管数据（开放数据域读取用）
+      uploadScore: isWx
+        ? function (score) {
+            try { wx.setUserCloudStorage({ KVDataList: [{ key: 'score', value: String(score) }] }); } catch (e) {}
+          }
+        : function () {},
+      // 排行榜面板：打开时通知开放数据域渲染共享画布；rankCanvas() 供主屏 drawImage
+      showRank: isWx
+        ? function (rect) {
+            try {
+              rankShared = wx.getSharedCanvas();
+              wx.getOpenDataContext().postMessage({ cmd: 'render', w: rect.w, h: rect.h, dpr: dpr });
+            } catch (e) { rankShared = null; }
+          }
+        : function () {},
+      hideRank: function () { rankShared = null; },
+      rankCanvas: function () { return rankShared; }
     };
 
     var game = new Game(env);

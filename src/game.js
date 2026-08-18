@@ -192,12 +192,21 @@
       return;
     }
     this.overlay = key;
+    if (key === 'rank' && this.env.showRank) this.env.showRank(this.rankContentRect());
+  };
+
+  // 排行榜内容区（drawOverlay 面板内部），主屏与开放数据域共用同一几何
+  Game.prototype.rankContentRect = function () {
+    var W = this.W, H = this.H;
+    var px = W * 0.1, py = H * 0.28, pw = W * 0.8, ph = H * 0.34;
+    return { x: px + W * 0.05, y: py + H * 0.085, w: pw - W * 0.10, h: ph - H * 0.135 };
   };
 
   Game.prototype.handleOverlayTap = function (x, y) {
     var c = this.overlayClose;
     if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) {
       this.overlay = null;
+      if (this.env.hideRank) this.env.hideRank();
       return;
     }
     if (this.overlay === 'settings') {
@@ -228,6 +237,7 @@
     this.tierIdx = 0;          // 每局从 0 段（倒奶）重新开始
     this.lastCup = null;       // 跨局不继承杯型记忆
     this.perfectStreak = 0;    // 跨局不继承连击
+    if (this.best > 0 && this.env.uploadScore) this.env.uploadScore(this.best); // 兜底上报历史最高（幂等）
     this.newRound();
   };
 
@@ -336,6 +346,7 @@
       this.best = this.score;
       this.newRecord = true;
       this.env.setStorage('best', String(this.best));
+      if (this.env.uploadScore) this.env.uploadScore(this.best); // 新纪录上报微信好友排行
     }
   };
 
@@ -1182,11 +1193,22 @@
       ctx.fillText('水桶皮肤 · 杯型材质 · 去除广告', W / 2, py + H * 0.115);
       ctx.fillText('品牌联名饮品即将上架，敬请期待', W / 2, py + H * 0.155);
     } else if (this.overlay === 'rank') {
-      ctx.fillText('本机最高分：' + this.best, W / 2, py + H * 0.115);
-      ctx.fillText('累计成功：' + this.totalCups + ' 杯', W / 2, py + H * 0.155);
-      ctx.font = Math.round(H * 0.017) + 'px sans-serif';
-      ctx.fillStyle = PAL.MUTED;
-      ctx.fillText('好友排行接入微信开放数据域后开放', W / 2, py + H * 0.195);
+      var rc = this.env.rankCanvas && this.env.rankCanvas();
+      if (rc) {
+        // 微信：开放数据域好友排行榜（共享画布）
+        var r = this.rankContentRect();
+        ctx.drawImage(rc, r.x, r.y, r.w, r.h);
+        ctx.font = Math.round(H * 0.015) + 'px sans-serif';
+        ctx.fillStyle = PAL.MUTED;
+        ctx.fillText('好友排行 · 每破纪录自动更新', W / 2, py + ph - H * 0.02);
+      } else {
+        // 浏览器预览：本机数据兜底
+        ctx.fillText('本机最高分：' + this.best, W / 2, py + H * 0.115);
+        ctx.fillText('累计成功：' + this.totalCups + ' 杯', W / 2, py + H * 0.155);
+        ctx.font = Math.round(H * 0.017) + 'px sans-serif';
+        ctx.fillStyle = PAL.MUTED;
+        ctx.fillText('微信小游戏内显示好友排行榜', W / 2, py + H * 0.195);
+      }
     } else {
       // 震动开关
       var tw = W * 0.34, th = H * 0.05;
