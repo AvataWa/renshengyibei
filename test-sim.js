@@ -56,7 +56,7 @@ step(0.2);
 console.log('菜单流程 OK, overlay =', game.overlay);
 
 // 2. 多轮游玩：随机按住不同时长，覆盖 成功(+1/+2)/失败/溢出
-let wins = 0, fails = 0;
+let wins = 0, fails = 0, choices = 0;
 env._press(10, 10); // 菜单任意位置开始游戏
 for (let round = 0; round < 200 && game.state !== 'menu'; round++) {
   if (game.state === 'over') {
@@ -65,9 +65,22 @@ for (let round = 0; round < 200 && game.state !== 'menu'; round++) {
     step(0.2);
     continue;
   }
-  // 等到 aim 阶段
+  // 等到 aim 阶段（途中遇到人生选择：自动点第一张卡；反转模式：按住即定格）
   let guard = 0;
-  while (game.phase !== 'aim' && guard++ < 600) step(1 / 60);
+  while (game.phase !== 'aim' && guard++ < 600) {
+    if (game.phase === 'choice' && game.choiceRects && game.choiceRects.length) {
+      const r = game.choiceRects[0];
+      env._press(r.x + 5, r.y + 5); // 点选第一张卡
+      choices++;
+      step(0.3);
+    } else if (game.phase === 'press' && game.reverseCups > 0) {
+      step(0.6);
+      env._press(10, 10); // 反转模式：点按定格
+      step(1.2);
+    } else {
+      step(1 / 60);
+    }
+  }
   if (game.phase !== 'aim') break;
   const holdTime = 0.3 + Math.random() * 2.2;
   env._press(10, 10); // 按住
@@ -77,14 +90,25 @@ for (let round = 0; round < 200 && game.state !== 'menu'; round++) {
   if (game.state === 'over') { fails++; env._press(game.overButtons[0].x + 5, game.overButtons[0].y + 5); step(0.2); }
   else if (game.phase === 'next') { wins++; step(1.0); }
 }
-console.log(`游玩模拟 OK: 成功 ${wins} 杯, 失败 ${fails} 次, 当前分数 ${game.score}, 最高 ${game.best}`);
+console.log(`游玩模拟 OK: 成功 ${wins} 杯, 失败 ${fails} 次, 抽卡 ${choices} 次, 当前分数 ${game.score}, 最高 ${game.best}`);
 
 // 3. 结算界面按钮
 if (game.state !== 'over') {
   // 制造一次失败
   let guard = 0;
-  while (game.phase !== 'aim' && guard++ < 600) step(1 / 60);
-  env._press(10, 10); step(3.0); env._release(); step(1.5); // 必然溢出
+  while (game.phase !== 'aim' && guard++ < 600) {
+    if (game.phase === 'choice' && game.choiceRects && game.choiceRects.length) {
+      const r = game.choiceRects[0];
+      env._press(r.x + 5, r.y + 5);
+      step(0.3);
+    } else if (game.phase === 'press' && game.reverseCups > 0) {
+      step(3.0); // 反转模式：不定格，等水溢出
+    } else {
+      step(1 / 60);
+    }
+  }
+  if (game.phase === 'aim') { env._press(10, 10); step(3.0); env._release(); step(1.5); } // 必然溢出
+  else step(3.0);
 }
 if (game.state === 'over') {
   env._press(game.overButtons[2].x + 5, game.overButtons[2].y + 5); // 分享战绩
