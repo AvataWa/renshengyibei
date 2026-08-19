@@ -129,6 +129,7 @@
     this.zoneWanderT = 0;
     this.slowTapOn = false;
     this.reverseLock = false;
+    this._keepCup = false;    // 人生选择后保杯标记（newRound 消费）
   };
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
@@ -190,7 +191,13 @@
     if (fx0.tierPick || fx0.tierPickNext) { this.applyTierDraw(opt, fx0); return; }
     this.usedChoiceIds[opt.id] = true;
     var m = this.mods, fx = opt.fx || {};
+    // 杯型类效果（这些选项的说明里明确提到换/变杯子，选后需要重新抽杯）
+    var CUP_FX = { poolOverride: 1, poolOverrideCurrent: 1, cupSimple3: 1, straightCups: 1,
+      cupSizeMul: 1, cupAspectMul: 1, invertCups: 1, sizeVariance: 1, easyNextTier: 1 };
+    var affectsCup = false;
+    var tierBefore = this.tierIdx;
     for (var k in fx) {
+      if (CUP_FX[k]) affectsCup = true;
       var v = fx[k];
       switch (k) {
         case 'perfectScale': case 'completeScale': case 'pourRateScale': case 'scoreMult':
@@ -253,6 +260,8 @@
       }
     }
     this.tierIdx = Cups.tierFor(this.score);
+    // 非换杯类选项且段位未变：下一杯继续用当前杯（杯子不该因为无关选择而变化）
+    this._keepCup = !affectsCup && this.tierIdx === tierBefore;
     this.toast('「' + opt.name + '」已生效');
     this.pendingChoice = null;
     this.pendingTierFx = null;
@@ -484,20 +493,28 @@
     this.round++;
     var tier = Cups.TIERS[this.tierIdx];
     this.tier = tier; // 当前段位（倒水速度等按段位配置取值）
-    // 杯型选择：预抽（记账习惯预告）或现抽，含轻装上阵/降维打击/梦中情杯等修正
-    var cup = this.nextCupPre || this.pickCup();
-    var guard = 0;
-    while (this.lastCup && cup.name === this.lastCup.name && guard++ < 6) {
-      cup = this.pickCup();
+    // 杯型选择：人生选择后的保杯（选项未涉及杯型且段位未变时沿用当前杯），
+    // 否则预抽（记账习惯预告）或现抽，含轻装上阵/降维打击/梦中情杯等修正
+    var keepCup = this._keepCup && this.cup;
+    this._keepCup = false;
+    var cup;
+    if (keepCup) {
+      cup = this.cup;
+    } else {
+      cup = this.nextCupPre || this.pickCup();
+      var guard = 0;
+      while (this.lastCup && cup.name === this.lastCup.name && guard++ < 6) {
+        cup = this.pickCup();
+      }
+      // 预抽下一杯（预告显示用；不与本杯重复）
+      this.nextCupPre = this.pickCup();
+      var g2 = 0;
+      while (this.nextCupPre && this.nextCupPre.name === cup.name && g2++ < 6) {
+        this.nextCupPre = this.pickCup();
+      }
     }
     this.cup = cup;
     this.lastCup = cup;
-    // 预抽下一杯（预告显示用；不与本杯重复）
-    this.nextCupPre = this.pickCup();
-    var g2 = 0;
-    while (this.nextCupPre && this.nextCupPre.name === cup.name && g2++ < 6) {
-      this.nextCupPre = this.pickCup();
-    }
     // 计数型效果随杯消耗（本杯已生效一次）
     if (this.rushCups > 0) this.rushCups--;
     if (this.onlyPerfectCups > 0) this.onlyPerfectCups--;
@@ -842,7 +859,12 @@
   Game.prototype.spoutTip = function () {
     var a = this.currentTilt();
     var px = this.spout.x, py = this.spout.y;
-    var lx = 12, ly = 10; // 壶嘴局部偏移（默认）
+    // 出水点局部偏移：通用水桶贴图的支点就在壶嘴尖（0,0）；
+    // 矢量兜底瓶支点在瓶身右下角，壶嘴沿在瓶身右上角（-6, -瓶高+14）
+    var lx = 0, ly = 0;
+    if (!(this.assets.bucket && this.assets.bucket.ready)) {
+      lx = -6; ly = -this.bucketH + 14;
+    }
     var cfg = this.containerCfg;
     if (cfg && this.assets.containers &&
         this.assets.containers[this.containerIdx] && this.assets.containers[this.containerIdx].ready) {
@@ -1236,23 +1258,26 @@
     ctx.lineJoin = 'round';
     ctx.stroke();
 
-    // 桶内水面（随已倒量下降）
+    // 桶内水面（随已倒量下降）：液面始终水平——先在瓶身局部坐标系裁剪内部区域，
+    // 再把坐标系转回世界方向画水平液面，这样瓶子倾斜时水面依然保持水平
     var innerLevel = Math.max(0.15, 0.9 - this.poured * 0.35);
     ctx.save();
     ctx.beginPath();
     ctx.rect(x0 + 5, y0 + 5, bw - 20, bh - 10);
     ctx.clip();
+    ctx.rotate(-this.angle); // 回到世界方向（原点仍是支点）
     ctx.fillStyle = this.drink ? this.drink.color : '#3FA7FF';
     ctx.globalAlpha = 0.85;
-    var wy = -bh * innerLevel;
+    var wy = -bh * innerLevel; // 液面世界高度（相对支点）
+    var wx0 = -bw * 2, wx1 = bw * 2;
     ctx.beginPath();
-    ctx.moveTo(x0 + 5, 0);
-    ctx.lineTo(x0 + 5, wy);
-    for (var i = 0; i <= 16; i++) {
-      var x = x0 + 5 + (bw - 20) * (i / 16);
-      ctx.lineTo(x, wy + Math.sin(this.time * 5 + i) * 2);
+    ctx.moveTo(wx0, bh * 2);
+    ctx.lineTo(wx0, wy);
+    for (var i = 0; i <= 24; i++) {
+      var wx2 = wx0 + (wx1 - wx0) * (i / 24);
+      ctx.lineTo(wx2, wy + Math.sin(this.time * 5 + i) * 2);
     }
-    ctx.lineTo(x0 + 5 + bw - 20, 0);
+    ctx.lineTo(wx1, bh * 2);
     ctx.closePath();
     ctx.fill();
     ctx.restore();

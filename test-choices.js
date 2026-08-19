@@ -204,5 +204,33 @@ console.log('5. 段位之力抽屉');
   step(g9, 0.3);
 }
 
+// 6. 选择后保杯：非换杯选项不换杯；换杯选项/段位变化才重抽
+console.log('6. 选择后保杯');
+{
+  const g = makeGame();
+  const cupName = g.cup.name;
+  g.applyChoice(Choices.POOL.find(c => c.id === 'B1')); // 按时吃饭：与杯子无关
+  ok(g.cup.name === cupName, 'B1 后应保留当前杯，实际换成 ' + g.cup.name);
+
+  const g2 = makeGame();
+  g2.tierIdx = 0; g2.score = 0; g2.newRound();
+  const cup2 = g2.cup.name;
+  g2.applyChoice(Choices.POOL.find(c => c.id === 'A11')); // 断奶第一课：杯子变高瘦
+  ok(g2.cup.name !== cup2, 'A11（换杯选项）后应重新抽杯');
+
+  const g3 = makeGame();
+  g3.score = 10;
+  const cup3 = g3.cup.name;
+  g3.applyChoice(Choices.POOL.find(c => c.id === 'D2')); // 彩票 +20 → 跨段
+  ok(g3.tierIdx === 1, 'D2 后应升到 1 段，实际 ' + g3.tierIdx);
+  ok(g3.cup.name !== cup3, '段位变化后应重新抽杯');
+
+  // 下一局恢复默认：startGame 后杯型重新随机、修正清零
+  const g4 = makeGame();
+  g4.applyChoice(Choices.POOL.find(c => c.id === 'C9')); // 田忌赛马
+  g4.startGame();
+  ok(g4.mods.invertCups === false && g4._keepCup === false, '重开后杯型修正应恢复默认');
+}
+
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);
 process.exit(failCount ? 1 : 0);
