@@ -95,6 +95,7 @@
 </div>
 <div id="toast"></div>
 <script src="src/cups.js"></script>
+<script src="src/cups-lab.js"></script>
 <script>
 (function () {
   'use strict';
@@ -522,14 +523,14 @@
   cv.addEventListener('pointerup', function () { dragIdx = -1; dragHandle = null; draw(); });
 
   // ---------- 列表（按段位独立杯池分组） ----------
-  var TIER_LABELS = ['倒奶 · 人类幼崽', '可乐 · 元气少年', '啤酒 · 未来可期', '红酒 · 职场新人', '白酒 · 职场中坚', '茶 · 人间清醒'];
+  var TIER_LABELS = ['倒奶 · 人类幼崽', '可乐 · 元气少年', '麦芽 · 未来可期', '葡萄汁 · 职场新人', '玉露 · 职场中坚', '茶 · 人间清醒'];
   function renderList() {
     var box = $('items'), html = '', lastPool = -1;
     for (var i = 0; i < Cups.CUPS.length; i++) {
       var c = Cups.CUPS[i], pool = c.pool || 0;
       if (pool !== lastPool) {
         lastPool = pool;
-        html += '<div class="grp">段位' + pool + ' · ' + (TIER_LABELS[pool] || '未知') + '</div>';
+        html += '<div class="grp">' + (pool >= 9 ? '试制 · 参考图杯型（不进游戏）' : '段位' + pool + ' · ' + (TIER_LABELS[pool] || '未知')) + '</div>';
       }
       html += '<div class="item' + (cur && cur.index === i ? ' on' : '') + '" data-i="' + i + '">' +
               c.name + '<div class="sub">' + c.hint + ' · 高宽比 ' + c.aspect + '</div></div>';
