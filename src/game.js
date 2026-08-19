@@ -395,14 +395,12 @@
         }
         return;
       }
-      // 右下角「已做选择」按钮
-      if (this.phase !== 'choice' && this.phase !== 'choice2') {
-        var cb = this.choicesBtnRect();
-        if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
-          this.choiceListOpen = true;
-          this._listDrag = null;
-          return;
-        }
+      // 右下角「已做选择」按钮（抽卡界面也可点开，便于基于已做选择做决策）
+      var cb = this.choicesBtnRect();
+      if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
+        this.choiceListOpen = true;
+        this._listDrag = null;
+        return;
       }
       // 人生选择：点选三张卡之一（弹出 1 秒内不响应，防误触）
       if (this.phase === 'choice') {
@@ -966,7 +964,7 @@
     // 人生选择三选一（局内最顶层，半透压暗背景）
     if (this.state === 'play' && this.phase === 'choice') this.drawChoice();
     if (this.state === 'play' && this.phase === 'choice2') this.drawChoice2();
-    if (this.state === 'play' && this.phase !== 'choice' && this.phase !== 'choice2') this.drawChoicesBtn();
+    if (this.state === 'play') this.drawChoicesBtn(); // 「已做选择」按钮常显（含抽卡界面，便于决策参考）
     if (this.state === 'play' && this.choiceListOpen) this.drawChoicesList();
   };
 
@@ -1550,7 +1548,6 @@
       var meta = Choices.CATS[c.cat] || Choices.CATS.A;
       var rare = c.cat === 'D';
       ctx.save();
-      if (locked) ctx.globalAlpha = 0.45;
       ctx.fillStyle = '#FFFFFF';
       this.roundRect(cx, y0, cw, ch, 14);
       ctx.fill();
