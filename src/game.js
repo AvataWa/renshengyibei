@@ -65,7 +65,7 @@
     this.poured = 0;
     this.lastCup = null;     // 上一杯杯型（避免连续重复）
     this.perfectStreak = 0;  // 连续完美计数（2 连 3 分，3 连起 4 分）
-    this.bubb = [];          // 液体内碳酸气泡（可乐/啤酒）
+    this.bubb = [];          // 液体内碳酸气泡（可乐/麦芽）
     this.roundFade = 1;      // 新杯淡入过渡（1 = 完全显示）
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
@@ -582,7 +582,7 @@
     this.containerCfg = (Containers && Containers[this.containerIdx]) || null;
 
     // 杯型几何：aspect = 杯高 / 杯口最大直径；size = 杯型大小差异（小盅浅快、大杯深慢）
-    // 人生选择修正：断奶第一课(高瘦)/一口闷(小)/田忌赛马(宽窄互换)/大开大合(差异翻倍)
+    // 人生选择修正：断奶第一课(高瘦)/一口干(小)/田忌赛马(宽窄互换)/大开大合(差异翻倍)
     var m = this.mods;
     var aspect = this.cup.aspect * m.cupAspectMul;
     if (m.invertCups) aspect *= Math.max(0.7, Math.min(1.5, 1.4 / this.cup.aspect));
@@ -1123,7 +1123,7 @@
         ctx.lineTo(this.cx + rw, ri === 0 ? ry + 2 : ry);
       }
       ctx.closePath();
-      // 材质：顶部饮品本色 → 底部深色，纵向渐变出体积感；透明度按饮品（白酒清透、牛奶醇厚）
+      // 材质：顶部饮品本色 → 底部深色，纵向渐变出体积感；透明度按饮品（玉露清透、牛奶醇厚）
       var dk = this.drink;
       var lgrad = ctx.createLinearGradient(0, surfY, 0, this.baseY);
       lgrad.addColorStop(0, dk.color);
@@ -1134,7 +1134,7 @@
       ctx.fillStyle = lgrad;
       ctx.fill();
       ctx.globalAlpha = 1;
-      // 碳酸气泡：液体内上浮的小气泡圈（可乐/啤酒），颜色比液体亮一截
+      // 碳酸气泡：液体内上浮的小气泡圈（可乐/麦芽），颜色比液体亮一截
       if (this.bubb.length) {
         ctx.strokeStyle = this.splashTint();
         ctx.lineWidth = 1.2;
@@ -1145,7 +1145,7 @@
         }
         ctx.globalAlpha = 1;
       }
-      // 啤酒泡沫层：沿波动液面盖一条奶油色泡沫
+      // 麦芽泡沫层：沿波动液面盖一条奶油色泡沫
       if (dk.foam && this.level > 0.02) {
         ctx.strokeStyle = 'rgba(255,246,224,0.92)';
         ctx.lineWidth = 7;
@@ -1403,7 +1403,7 @@
 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    // 描边层：浅色饮品（牛奶/白酒）在浅背景上也能看清
+    // 描边层：浅色饮品（牛奶/玉露）在浅背景上也能看清
     for (var pass = 0; pass < 2; pass++) {
       ctx.strokeStyle = pass === 0 ? 'rgba(43,42,38,0.28)' : this.drink.color;
       ctx.beginPath();
@@ -1775,7 +1775,7 @@
     ctx.fillStyle = PAL.MUTED;
     ctx.fillText('人生一杯', mx, dy + H * 0.152);
 
-    // —— 容器英雄图：奶盒/可乐瓶/啤酒瓶/茶壶 前后错落 ——
+    // —— 容器英雄图：奶盒/可乐瓶/麦芽瓶/茶壶 前后错落 ——
     var heroes = this.assets.heroes;
     if (heroes && heroes.ready) {
       var aspect = heroes.img.width / heroes.img.height;
@@ -1784,7 +1784,7 @@
       var hBottom = H * 0.44;
       ctx.drawImage(heroes.img, (W - hw) / 2, hBottom - hh, hw, hh);
     } else {
-      // 素材未加载时的矢量兜底：奶盒/可乐瓶/啤酒瓶/茶壶/白酒瓶前后错落
+      // 素材未加载时的矢量兜底：奶盒/可乐瓶/麦芽瓶/茶壶/玉露瓶前后错落
       var base2 = H * 0.44;
       var specs = [
         { dx: -0.31, w: 0.115, h: 0.150, c: '#A9CFE8', e: '#3E5C76', kind: 'carton' },

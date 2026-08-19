@@ -54,11 +54,11 @@ game.newRound();
 assert.strictEqual(game.drink.name, '可乐', '段位1饮品应为可乐');
 console.log('跨段 0→1 OK：', Cups.TIERS[game.tierIdx].name, '/', game.drink.name);
 
-for (let i = 0; i < 20; i++) winOnce(); // 本局 40 分 → 段位2 未来可期（啤酒，门槛 40）
+for (let i = 0; i < 20; i++) winOnce(); // 本局 40 分 → 段位2 未来可期（麦芽，门槛 40）
 assert.strictEqual(game.score, 40, '本局分应为 40');
 assert.strictEqual(game.tierIdx, 2, '40 分应升到未来可期');
 game.newRound();
-assert.strictEqual(game.drink.name, '啤酒', '段位2饮品应为啤酒');
+assert.strictEqual(game.drink.name, '麦芽', '段位2饮品应为麦芽');
 console.log('跨段 1→2 OK：', Cups.TIERS[game.tierIdx].name, '/', game.drink.name);
 
 // 1b. 失败后重开 = 回到 0 段倒奶（完全从头开始）
@@ -83,18 +83,18 @@ for (let i = 0; i < 600; i++) {
 assert.strictEqual(seen.size, 20, '倒奶杯池应有 20 个杯型，实际：' + seen.size);
 console.log('岁月回甘杯池（=倒奶池）覆盖 OK：', seen.size, '个');
 
-// 3. 段位杯池互相独立（段位3 = 红酒池前 cupCount 个，不串池）
+// 3. 段位杯池互相独立（段位3 = 葡萄汁池前 cupCount 个，不串池）
 storage = { best: '90' };
 game = new Game(makeEnv(storage));
 assert.strictEqual(game.tierIdx, 3, '历史最高 90 分应显示职场新人');
 const cupCount = Cups.TIERS[3].cupCount;
 for (let i = 0; i < 400; i++) {
   const cup = Cups.randomCupTier(3, cupCount);
-  assert.strictEqual(cup.pool, 3, '红酒段位不应抽到别的杯池: ' + cup.name);
+  assert.strictEqual(cup.pool, 3, '葡萄汁段位不应抽到别的杯池: ' + cup.name);
   const winePool = Cups.CUPS.filter((c) => c.pool === 3);
   assert.ok(winePool.indexOf(cup) < cupCount, '杯型不应超出杯池前 N 个: ' + cup.name);
 }
-console.log('段位3独立杯池 OK（红酒池取前', cupCount, '个）');
+console.log('段位3独立杯池 OK（葡萄汁池取前', cupCount, '个）');
 
 // 4. 每局第一杯固定从本段杯池最简单 3 个里出
 game.newRound();
@@ -105,7 +105,7 @@ assert.ok(tier3Simple.includes(game.cup.name), '每局第一杯应为本段杯�
 assert.strictEqual(Cups.rankFor(0).label, '人类幼崽');
 assert.strictEqual(Cups.rankFor(4).label, '人类幼崽');
 assert.strictEqual(Cups.rankFor(9).label, '人类幼崽');
-assert.strictEqual(Cups.rankFor(45).label, '未来可期'); // 啤酒段不分阶（门槛 40）
+assert.strictEqual(Cups.rankFor(45).label, '未来可期'); // 麦芽段不分阶（门槛 40）
 assert.strictEqual(Cups.rankFor(90).label, '职场新人·初入');
 assert.strictEqual(Cups.rankFor(105).label, '职场新人·上手');
 assert.strictEqual(Cups.rankFor(120).label, '职场新人·转正');

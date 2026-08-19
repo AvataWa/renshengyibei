@@ -46,7 +46,7 @@
     { id: 'A12', cat: 'A', name: '无糖可乐', desc: '气泡翻涌遮挡视线，每次完美 +2 分', flavor: '没糖的快乐水，喝的是自律。', tiers: [1], fx: { bubbleBoost: true, perfectBonus: 2 } },
     { id: 'A13', cat: 'A', name: '考研二战', desc: '完美 −25%，每次完美 +2 分', flavor: '再来一年的勇气，比分数更贵。', tiers: [2], fx: { perfectScale: 0.75, perfectBonus: 2 } },
     { id: 'A14', cat: 'A', name: '深夜改稿', desc: '完美 −30%，完美一次计 2 连', flavor: '改得动的方案，改不动的 Deadline。', tiers: [3], fx: { perfectScale: 0.7, streakGain: 2 } },
-    { id: 'A15', cat: 'A', name: '一口闷', desc: '杯型更小更窄，每杯 +2 分', flavor: '感情深，一口闷；分寸浅，杯中见。', tiers: [4], fx: { cupSizeMul: 0.8, cupBonus: 2 } },
+    { id: 'A15', cat: 'A', name: '一口干', desc: '杯型更小更窄，每杯 +2 分', flavor: '感情深，一口干；分寸浅，杯中见。', tiers: [4], fx: { cupSizeMul: 0.8, cupBonus: 2 } },
     { id: 'A16', cat: 'A', name: '茶要七分满', desc: '目标区上移更易溢出，每杯 +2 分', flavor: '七分是茶，十分是烫。', tiers: [5], fx: { zoneShift: 0.08, cupBonus: 2 } },
     { id: 'A17', cat: 'A', name: '回甘要慢品', desc: '出水 +20%，每杯 +2 分', flavor: '回甘这杯奶，倒快了就品不出甜。', tiers: [6], fx: { pourRateScale: 1.2, cupBonus: 2 } },
     { id: 'A18', cat: 'A', name: '转行阵痛', desc: '出水 +25%，每杯 +1 分', flavor: '阵痛是成长的入场券。', tiers: [3, 4], fx: { pourRateScale: 1.25, cupBonus: 1 } },
@@ -146,25 +146,25 @@
       { id: 'T15', name: '气泡之力 · 气泡护身', desc: '获得 1 次连击保护', fx: { comboProtect: 1 } }
     ],
     [ // 2 未来可期 · 麦芽之力
-      { id: 'T21', name: '麦芽之力 · 酒逢知己', desc: '连击额外 +1 分', fx: { comboBonus: 1 } },
+      { id: 'T21', name: '麦芽之力 · 杯逢知己', desc: '连击额外 +1 分', fx: { comboBonus: 1 } },
       { id: 'T22', name: '麦芽之力 · 泡沫缓冲', desc: '完成范围 +12%', fx: { completeScale: 1.12 } },
-      { id: 'T23', name: '麦芽之力 · 千杯不醉', desc: '获得 1 次失败保护', fx: { failProtect: 1 } },
+      { id: 'T23', name: '麦芽之力 · 千杯不倒', desc: '获得 1 次失败保护', fx: { failProtect: 1 } },
       { id: 'T24', name: '麦芽之力 · 整点毕业', desc: '立即 +8 分', fx: { instantScore: 8 } },
       { id: 'T25', name: '麦芽之力 · 青春无敌', desc: '出水速度 −10%，完美 +8%', fx: { pourRateScale: 0.9, perfectScale: 1.08 } }
     ],
-    [ // 3 职场新人 · 单宁之力
-      { id: 'T31', name: '单宁之力 · 醒酒沉淀', desc: '出水速度 −15%', fx: { pourRateScale: 0.85 } },
-      { id: 'T32', name: '单宁之力 · 轻晃杯脚', desc: '完美范围 +15%', fx: { perfectScale: 1.15 } },
-      { id: 'T33', name: '单宁之力 · 第一笔工资', desc: '每杯基础分 +1', fx: { cupBonus: 1 } },
-      { id: 'T34', name: '单宁之力 · 前辈提点', desc: '预告下一杯杯型', fx: { cupPreview: true } },
-      { id: 'T35', name: '单宁之力 · 转正红包', desc: '升段/升阶额外 +5 分', fx: { stageUpBonus: 5 } }
+    [ // 3 职场新人 · 葡萄之力
+      { id: 'T31', name: '葡萄之力 · 醒杯沉淀', desc: '出水速度 −15%', fx: { pourRateScale: 0.85 } },
+      { id: 'T32', name: '葡萄之力 · 轻晃杯脚', desc: '完美范围 +15%', fx: { perfectScale: 1.15 } },
+      { id: 'T33', name: '葡萄之力 · 第一笔工资', desc: '每杯基础分 +1', fx: { cupBonus: 1 } },
+      { id: 'T34', name: '葡萄之力 · 前辈提点', desc: '预告下一杯杯型', fx: { cupPreview: true } },
+      { id: 'T35', name: '葡萄之力 · 转正红包', desc: '升段/升阶额外 +5 分', fx: { stageUpBonus: 5 } }
     ],
-    [ // 4 职场中坚 · 酱香之力
-      { id: 'T41', name: '酱香之力 · 老酒陈香', desc: '完美范围 +15%', fx: { perfectScale: 1.15 } },
-      { id: 'T42', name: '酱香之力 · 一口入魂', desc: '完美额外 +1 分', fx: { perfectBonus: 1 } },
-      { id: 'T43', name: '酱香之力 · 年终奖', desc: '立即 +10 分', fx: { instantScore: 10 } },
-      { id: 'T44', name: '酱香之力 · 酒桌豁免', desc: '获得 2 次连击保护', fx: { comboProtect: 2 } },
-      { id: 'T45', name: '酱香之力 · 细水长流', desc: '出水速度 −10%，每杯 +1 分', fx: { pourRateScale: 0.9, cupBonus: 1 } }
+    [ // 4 职场中坚 · 玉露之力
+      { id: 'T41', name: '玉露之力 · 岁月陈香', desc: '完美范围 +15%', fx: { perfectScale: 1.15 } },
+      { id: 'T42', name: '玉露之力 · 一口入魂', desc: '完美额外 +1 分', fx: { perfectBonus: 1 } },
+      { id: 'T43', name: '玉露之力 · 年终奖', desc: '立即 +10 分', fx: { instantScore: 10 } },
+      { id: 'T44', name: '玉露之力 · 饭局豁免', desc: '获得 2 次连击保护', fx: { comboProtect: 2 } },
+      { id: 'T45', name: '玉露之力 · 细水长流', desc: '出水速度 −10%，每杯 +1 分', fx: { pourRateScale: 0.9, cupBonus: 1 } }
     ],
     [ // 5 人间清醒 · 茶香之力
       { id: 'T51', name: '茶香之力 · 清茶慢斟', desc: '出水速度 −15%', fx: { pourRateScale: 0.85 } },

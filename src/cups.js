@@ -361,9 +361,9 @@
         0.511, 0.5, 0.5, 0.5, 0.5]),
       zones: { q: [0.50, 0.76] }
     },
-    // ── pool 2 · 啤酒（20 个独立杯型）──
+    // ── pool 2 · 麦芽（20 个独立杯型）──
     {
-      name: '标准扎啤杯', hint: '九分满', aspect: 1.4, stem: false, size: 1.1, pool: 2,
+      name: '标准大肚杯', hint: '九分满', aspect: 1.4, stem: false, size: 1.1, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.634, 0.701, 0.72, 0.72, 0.72, 0.72, 
@@ -372,7 +372,7 @@
       zones: { q: [0.70, 0.94] }
     },
     {
-      name: '厚壁啤酒杯', hint: '九分满', aspect: 1.2, stem: false, size: 1.1, pool: 2,
+      name: '厚壁麦芽杯', hint: '九分满', aspect: 1.2, stem: false, size: 1.1, pool: 2,
       deco: { handle: true, wallW: 6.5 },
       profile: tableProfile([
         0.686, 0.76, 0.78, 0.78, 0.78, 0.78, 
@@ -381,7 +381,7 @@
       zones: { q: [0.70, 0.94] }
     },
     {
-      name: '圆肚啤酒杯', hint: '过肚', aspect: 1.2, stem: false, size: 1.1, pool: 2,
+      name: '圆肚麦芽杯', hint: '过肚', aspect: 1.2, stem: false, size: 1.1, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.55, 0.635, 0.715, 0.785, 0.841, 0.88, 
@@ -390,7 +390,7 @@
       zones: { q: [0.55, 0.80] }
     },
     {
-      name: '大肚扎啤坛', hint: '过肚', aspect: 1, stem: false, size: 1.2, pool: 2,
+      name: '大肚大肚坛', hint: '过肚', aspect: 1, stem: false, size: 1.2, pool: 2,
       deco: { handle: { t1: 0.8, t2: 0.4, out: 0.7 } },
       profile: tableProfile([
         0.55, 0.661, 0.763, 0.848, 0.91, 0.944, 
@@ -399,7 +399,7 @@
       zones: { q: [0.50, 0.76] }
     },
     {
-      name: '收腰啤酒杯', hint: '过腰线', aspect: 1.5, stem: false, size: 1.1, pool: 2,
+      name: '收腰麦芽杯', hint: '过腰线', aspect: 1.5, stem: false, size: 1.1, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.66, 0.664, 0.667, 0.668, 0.663, 0.643, 
@@ -417,7 +417,7 @@
       zones: { q: [0.66, 0.90] }
     },
     {
-      name: '小麦啤酒杯', hint: '八分满', aspect: 2, stem: false, size: 1.15, pool: 2,
+      name: '小麦麦芽杯', hint: '八分满', aspect: 2, stem: false, size: 1.15, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.4, 0.406, 0.417, 0.431, 0.448, 0.466, 
@@ -426,7 +426,7 @@
       zones: { q: [0.66, 0.90] }
     },
     {
-      name: '矮啤酒杯', hint: '九分满', aspect: 0.85, stem: false, size: 1, pool: 2,
+      name: '矮麦芽杯', hint: '九分满', aspect: 0.85, stem: false, size: 1, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.704, 0.779, 0.8, 0.8, 0.8, 0.8, 
@@ -435,7 +435,7 @@
       zones: { q: [0.68, 0.92] }
     },
     {
-      name: '啤酒大马克', hint: '九分满', aspect: 1.2, stem: false, size: 1.25, pool: 2,
+      name: '麦芽大马克', hint: '九分满', aspect: 1.2, stem: false, size: 1.25, pool: 2,
       deco: { handle: { t1: 0.82, t2: 0.42, out: 0.8 } },
       profile: tableProfile([
         0.722, 0.798, 0.82, 0.82, 0.82, 0.82, 
@@ -453,7 +453,7 @@
       zones: { q: [0.58, 0.82] }
     },
     {
-      name: '圆球啤酒杯', hint: '过半', aspect: 1.1, stem: false, size: 1.1, pool: 2,
+      name: '圆球麦芽杯', hint: '过半', aspect: 1.1, stem: false, size: 1.1, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.52, 0.607, 0.689, 0.764, 0.826, 0.875, 
@@ -462,7 +462,7 @@
       zones: { q: [0.52, 0.78] }
     },
     {
-      name: '高扎啤杯', hint: '九分满', aspect: 1.9, stem: false, size: 1.15, pool: 2,
+      name: '高大肚杯', hint: '九分满', aspect: 1.9, stem: false, size: 1.15, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.563, 0.623, 0.64, 0.64, 0.64, 0.64, 
@@ -471,7 +471,7 @@
       zones: { q: [0.72, 0.95] }
     },
     {
-      name: '宽口啤酒碗', hint: '七分满', aspect: 0.65, stem: false, size: 1.2, pool: 2,
+      name: '宽口麦芽碗', hint: '七分满', aspect: 0.65, stem: false, size: 1.2, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.65, 0.705, 0.745, 0.78, 0.812, 0.842, 
@@ -480,7 +480,7 @@
       zones: { q: [0.55, 0.80] }
     },
     {
-      name: '酒桶杯', hint: '八分满', aspect: 1.3, stem: false, size: 1.15, pool: 2,
+      name: '木桶杯', hint: '八分满', aspect: 1.3, stem: false, size: 1.15, pool: 2,
       deco: { handle: true, ticks: 3 },
       profile: tableProfile([
         0.7, 0.735, 0.769, 0.8, 0.827, 0.85, 
@@ -489,7 +489,7 @@
       zones: { q: [0.60, 0.86] }
     },
     {
-      name: '小扎啤杯', hint: '满杯为宜', aspect: 1.2, stem: false, size: 0.8, pool: 2,
+      name: '小号大肚杯', hint: '满杯为宜', aspect: 1.2, stem: false, size: 0.8, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.572, 0.633, 0.65, 0.65, 0.65, 0.65, 
@@ -498,7 +498,7 @@
       zones: { q: [0.72, 0.96] }
     },
     {
-      name: '斜口啤酒杯', hint: '八分满', aspect: 1.2, stem: false, size: 1.05, pool: 2,
+      name: '斜口麦芽杯', hint: '八分满', aspect: 1.2, stem: false, size: 1.05, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.644, 0.706, 0.725, 0.737, 0.75, 0.763, 
@@ -507,7 +507,7 @@
       zones: { q: [0.62, 0.88] }
     },
     {
-      name: '收口啤酒杯', hint: '八分满', aspect: 1.3, stem: false, size: 1.05, pool: 2,
+      name: '收口麦芽杯', hint: '八分满', aspect: 1.3, stem: false, size: 1.05, pool: 2,
       deco: { handle: true },
       profile: tableProfile([
         0.782, 0.828, 0.821, 0.807, 0.793, 0.778, 
@@ -516,7 +516,7 @@
       zones: { q: [0.62, 0.88] }
     },
     {
-      name: '巨型扎啤', hint: '九分满', aspect: 1.2, stem: false, size: 1.35, pool: 2,
+      name: '巨型大肚杯', hint: '九分满', aspect: 1.2, stem: false, size: 1.35, pool: 2,
       deco: { handle: { t1: 0.84, t2: 0.4, out: 0.75 } },
       profile: tableProfile([
         0.704, 0.779, 0.8, 0.8, 0.8, 0.8, 
@@ -525,7 +525,7 @@
       zones: { q: [0.70, 0.94] }
     },
     {
-      name: '迷你啤酒盅', hint: '满杯为宜', aspect: 1, stem: false, size: 0.7, pool: 2,
+      name: '迷你麦芽盅', hint: '满杯为宜', aspect: 1, stem: false, size: 0.7, pool: 2,
       deco: { handle: { t1: 0.78, t2: 0.4, out: 0.55 } },
       profile: tableProfile([
         0.51, 0.565, 0.58, 0.58, 0.58, 0.58, 
@@ -534,7 +534,7 @@
       zones: { q: [0.72, 0.96] }
     },
     {
-      name: '竹节啤酒杯', hint: '八分满', aspect: 1.5, stem: false, size: 1.05, pool: 2,
+      name: '竹节麦芽杯', hint: '八分满', aspect: 1.5, stem: false, size: 1.05, pool: 2,
       deco: { handle: true, ticks: 5 },
       profile: tableProfile([
         0.552, 0.6, 0.61, 0.615, 0.62, 0.625, 
@@ -542,9 +542,9 @@
         0.66, 0.665, 0.67, 0.675, 0.68]),
       zones: { q: [0.64, 0.90] }
     },
-    // ── pool 3 · 红酒（20 个独立杯型）──
+    // ── pool 3 · 葡萄汁（20 个独立杯型）──
     {
-      name: '波尔多酒杯', hint: '1/3 杯', aspect: 1.5, stem: true, size: 1.08, pool: 3,
+      name: '经典高脚杯', hint: '1/3 杯', aspect: 1.5, stem: true, size: 1.08, pool: 3,
       profile: tableProfile([
         0.22, 0.352, 0.478, 0.591, 0.687, 0.761, 
         0.809, 0.829, 0.824, 0.802, 0.766, 0.72, 
@@ -552,7 +552,7 @@
       zones: { q: [0.28, 0.52] }
     },
     {
-      name: '勃艮第酒杯', hint: '1/3 杯', aspect: 1.2, stem: true, size: 1.15, pool: 3,
+      name: '宽肚高脚杯', hint: '1/3 杯', aspect: 1.2, stem: true, size: 1.15, pool: 3,
       profile: tableProfile([
         0.24, 0.428, 0.602, 0.747, 0.853, 0.91, 
         0.918, 0.901, 0.867, 0.819, 0.76, 0.697, 
@@ -560,7 +560,7 @@
       zones: { q: [0.26, 0.50] }
     },
     {
-      name: '通用红酒杯', hint: '1/3 杯', aspect: 1.4, stem: true, size: 1.05, pool: 3,
+      name: '通用高脚杯', hint: '1/3 杯', aspect: 1.4, stem: true, size: 1.05, pool: 3,
       profile: tableProfile([
         0.26, 0.386, 0.505, 0.609, 0.692, 0.75, 
         0.777, 0.778, 0.767, 0.746, 0.718, 0.687, 
@@ -584,7 +584,7 @@
       zones: { q: [0.50, 0.74] }
     },
     {
-      name: '郁金香酒杯', hint: '1/3 杯', aspect: 1.6, stem: true, size: 1.1, pool: 3,
+      name: '郁金香高脚杯', hint: '1/3 杯', aspect: 1.6, stem: true, size: 1.1, pool: 3,
       profile: tableProfile([
         0.24, 0.339, 0.435, 0.523, 0.601, 0.664, 
         0.711, 0.74, 0.75, 0.741, 0.716, 0.679, 
@@ -592,7 +592,7 @@
       zones: { q: [0.28, 0.52] }
     },
     {
-      name: '大肚醒酒杯', hint: '1/4 杯', aspect: 1.1, stem: true, size: 1.2, pool: 3,
+      name: '大肚醒杯杯', hint: '1/4 杯', aspect: 1.1, stem: true, size: 1.2, pool: 3,
       profile: tableProfile([
         0.26, 0.482, 0.68, 0.834, 0.926, 0.95, 
         0.939, 0.913, 0.875, 0.827, 0.772, 0.716, 
@@ -600,7 +600,7 @@
       zones: { q: [0.22, 0.46] }
     },
     {
-      name: '小高脚酒杯', hint: '1/3 杯', aspect: 1.3, stem: true, size: 0.8, pool: 3,
+      name: '小高脚杯', hint: '1/3 杯', aspect: 1.3, stem: true, size: 0.8, pool: 3,
       profile: tableProfile([
         0.24, 0.34, 0.434, 0.52, 0.592, 0.648, 
         0.684, 0.7, 0.697, 0.685, 0.666, 0.641, 
@@ -640,7 +640,7 @@
       zones: { q: [0.60, 0.84] }
     },
     {
-      name: '矮脚酒杯', hint: '1/3 杯', aspect: 1.1, stem: true, size: 0.9, pool: 3,
+      name: '矮脚杯', hint: '1/3 杯', aspect: 1.1, stem: true, size: 0.9, pool: 3,
       profile: tableProfile([
         0.3, 0.434, 0.559, 0.669, 0.757, 0.818, 
         0.847, 0.848, 0.833, 0.807, 0.773, 0.733, 
@@ -656,7 +656,7 @@
       zones: { q: [0.70, 0.92] }
     },
     {
-      name: '圆球酒杯', hint: '1/3 杯', aspect: 1.3, stem: true, size: 1.1, pool: 3,
+      name: '圆球杯', hint: '1/3 杯', aspect: 1.3, stem: true, size: 1.1, pool: 3,
       profile: tableProfile([
         0.26, 0.408, 0.548, 0.673, 0.775, 0.849, 
         0.891, 0.899, 0.887, 0.86, 0.822, 0.777, 
@@ -664,7 +664,7 @@
       zones: { q: [0.26, 0.50] }
     },
     {
-      name: '白葡萄酒杯', hint: '1/3 杯', aspect: 1.55, stem: true, size: 1, pool: 3,
+      name: '白葡萄杯', hint: '1/3 杯', aspect: 1.55, stem: true, size: 1, pool: 3,
       profile: tableProfile([
         0.22, 0.328, 0.431, 0.524, 0.603, 0.664, 
         0.703, 0.72, 0.717, 0.703, 0.681, 0.653, 
@@ -672,7 +672,7 @@
       zones: { q: [0.28, 0.52] }
     },
     {
-      name: '波特酒杯', hint: '半杯', aspect: 1.4, stem: true, size: 0.75, pool: 3,
+      name: '波特杯', hint: '半杯', aspect: 1.4, stem: true, size: 0.75, pool: 3,
       profile: tableProfile([
         0.24, 0.347, 0.447, 0.535, 0.606, 0.654, 
         0.678, 0.678, 0.668, 0.649, 0.624, 0.596, 
@@ -680,7 +680,7 @@
       zones: { q: [0.36, 0.60] }
     },
     {
-      name: '甜酒小杯', hint: '3/4 杯', aspect: 1.6, stem: true, size: 0.7, pool: 3,
+      name: '甜露小杯', hint: '3/4 杯', aspect: 1.6, stem: true, size: 0.7, pool: 3,
       profile: tableProfile([
         0.44, 0.487, 0.5, 0.5, 0.5, 0.5, 
         0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
@@ -704,9 +704,9 @@
         0.604, 0.57, 0.543, 0.526, 0.52]),
       zones: { q: [0.22, 0.46] }
     },
-    // ── pool 4 · 白酒（20 个独立杯型）──
+    // ── pool 4 · 玉露（20 个独立杯型）──
     {
-      name: '白酒小盅', hint: '满杯为宜', aspect: 1, stem: false, size: 0.7, pool: 4,
+      name: '玉露小盅', hint: '满杯为宜', aspect: 1, stem: false, size: 0.7, pool: 4,
       profile: tableProfile([
         0.45, 0.511, 0.568, 0.618, 0.658, 0.685, 
         0.699, 0.699, 0.69, 0.674, 0.654, 0.63, 
@@ -714,7 +714,7 @@
       zones: { q: [0.72, 0.96] }
     },
     {
-      name: '圆腹小酒杯', hint: '满杯为宜', aspect: 0.9, stem: false, size: 0.65, pool: 4,
+      name: '圆腹小杯', hint: '满杯为宜', aspect: 0.9, stem: false, size: 0.65, pool: 4,
       profile: tableProfile([
         0.42, 0.511, 0.596, 0.666, 0.717, 0.745, 
         0.749, 0.739, 0.719, 0.69, 0.655, 0.617, 
@@ -722,7 +722,7 @@
       zones: { q: [0.72, 0.96] }
     },
     {
-      name: '束腰酒盅', hint: '九分满', aspect: 1.1, stem: false, size: 0.7, pool: 4,
+      name: '束腰小瓷盅', hint: '九分满', aspect: 1.1, stem: false, size: 0.7, pool: 4,
       profile: tableProfile([
         0.62, 0.619, 0.617, 0.614, 0.605, 0.583, 
         0.547, 0.508, 0.49, 0.506, 0.542, 0.576, 
@@ -738,7 +738,7 @@
       zones: { q: [0.70, 0.94] }
     },
     {
-      name: '细颈酒壶杯', hint: '过颈', aspect: 1.6, stem: false, size: 0.85, pool: 4,
+      name: '细颈玉壶杯', hint: '过颈', aspect: 1.6, stem: false, size: 0.85, pool: 4,
       profile: tableProfile([
         0.4, 0.522, 0.631, 0.716, 0.767, 0.763, 
         0.68, 0.6, 0.527, 0.464, 0.413, 0.377, 
@@ -786,7 +786,7 @@
       zones: { q: [0.70, 0.94] }
     },
     {
-      name: '鼓形酒盅', hint: '满杯为宜', aspect: 0.95, stem: false, size: 0.72, pool: 4,
+      name: '鼓形小瓷盅', hint: '满杯为宜', aspect: 0.95, stem: false, size: 0.72, pool: 4,
       profile: tableProfile([
         0.48, 0.545, 0.607, 0.663, 0.71, 0.746, 
         0.77, 0.78, 0.777, 0.764, 0.743, 0.717, 
@@ -802,7 +802,7 @@
       zones: { q: [0.66, 0.90] }
     },
     {
-      name: '小酒坛', hint: '八分满', aspect: 0.9, stem: false, size: 0.8, pool: 4,
+      name: '小玉坛', hint: '八分满', aspect: 0.9, stem: false, size: 0.8, pool: 4,
       profile: tableProfile([
         0.5, 0.597, 0.686, 0.761, 0.815, 0.845, 
         0.849, 0.837, 0.812, 0.778, 0.736, 0.691, 
@@ -850,7 +850,7 @@
       zones: { q: [0.48, 0.74] }
     },
     {
-      name: '分酒小壶杯', hint: '过肩', aspect: 1.5, stem: false, size: 0.88, pool: 4,
+      name: '分盏小壶杯', hint: '过肩', aspect: 1.5, stem: false, size: 0.88, pool: 4,
       deco: { ticks: 2 },
       profile: tableProfile([
         0.42, 0.536, 0.643, 0.733, 0.798, 0.834, 
@@ -1065,8 +1065,8 @@
     { name: '清水', color: '#3FA7FF', deep: '#1E7FD9' },
     { name: '绿茶', color: '#B8D97A', deep: '#8FB84E' },
     { name: '红茶', color: '#B4692E', deep: '#8A4A1C' },
-    { name: '红酒', color: '#8E2434', deep: '#6B1424' },
-    { name: '白酒', color: '#EDF5FB', deep: '#C7DCEC' },
+    { name: '葡萄汁', color: '#8E2434', deep: '#6B1424' },
+    { name: '玉露', color: '#EDF5FB', deep: '#C7DCEC' },
     { name: '橙汁', color: '#F6A83C', deep: '#E0861A' },
     { name: '可乐', color: '#40251A', deep: '#241209' } // 品牌植入预留位：可替换为合作品牌色
   ];
@@ -1087,22 +1087,22 @@
       '手抖一下，气泡就少一分。'
     ],
     beer: [
-      '啤酒九分满，泡沫不越位。',
+      '麦芽九分满，泡沫不越位。',
       '干杯之前，先别洒。',
       '麦芽的香气，值得稳稳一倒。',
-      '泡沫是啤酒的皇冠，别碰掉了。'
+      '泡沫是麦芽的皇冠，别碰掉了。'
     ],
     wine: [
-      '红酒只倒三分之一，留余地也留香气。',
+      '葡萄汁只倒三分之一，留余地也留香气。',
       '晃杯之前，先学会倒杯。',
-      '三分之一杯，是红酒的礼仪。',
+      '三分之一杯，是葡萄汁的礼仪。',
       '深红的液体里，住着一整片葡萄园。'
     ],
     baijiu: [
-      '白酒满杯，代表对敬酒之人的尊敬。',
-      '酒满敬人，茶满欺人。',
-      '分酒器里见功夫。',
-      '一杯白酒，一份担当。'
+      '玉露满杯，代表对敬杯之人的尊敬。',
+      '杯满敬人，茶满欺人。',
+      '公道杯里见功夫。',
+      '一杯玉露，一份担当。'
     ],
     tea: [
       '茶倒七分满，留得三分是情谊。',
@@ -1162,16 +1162,16 @@
       line: '人生的第一杯，要稳稳的。', wisdom: '小时候嫌奶淡，长大后才懂：最纯的甜，都在第一杯里。', color: '#FFFFFF', deep: '#E3D5B5', foam: false },
     { key: 'cola',     name: '元气少年', stage: '上学',     drinkName: '可乐', score: 10,  cupCount: 20, pourRate: 0.338, alpha: 0.90, bubbles: true,
       line: '快乐水配暑假，倒多少都是自由。', wisdom: '气泡再欢腾也会散去，快乐水教我的事：趁有气，大口喝。', color: '#40251A', deep: '#241209', foam: false },
-    { key: 'beer',     name: '未来可期', stage: '大学/毕业', drinkName: '啤酒', score: 25,  cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: true,
-      line: '泡沫升起来的时候，青春也是。', wisdom: '泡沫是啤酒的皇冠，也是青春的——看着满，抿一口才知真假。', color: '#F2B33D', deep: '#D98E1B', foam: true },
-    { key: 'wine',     name: '职场新人', stage: '职场新人', drinkName: '红酒', score: 55,  steps: [55, 65, 75], stages: ['初入', '上手', '转正'], cupCount: 20, pourRate: 0.338, alpha: 0.82, bubbles: false,
-      line: '只倒三分之一——职场第一课：留余地。', wisdom: '红酒只倒三分满。杯留余地，人也留余地，香气才进得来。', color: '#8E2434', deep: '#6B1424', foam: false },
-    { key: 'baijiu',   name: '职场中坚', stage: '职场中坚', drinkName: '白酒', score: 85,  steps: [85, 100, 115], stages: ['扛事', '带队', '掌局'], cupCount: 20, pourRate: 0.338, alpha: 0.50, bubbles: false,
-      line: '这一杯，敬客户，也敬自己。', wisdom: '酒满敬人，话满误事。这一杯的分寸，是二十年饭局换的。', color: '#EDF5FB', deep: '#C7DCEC', foam: false },
+    { key: 'beer',     name: '未来可期', stage: '大学/毕业', drinkName: '麦芽', score: 25,  cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: true,
+      line: '泡沫升起来的时候，青春也是。', wisdom: '泡沫是麦芽的皇冠，也是青春的——看着满，抿一口才知真假。', color: '#F2B33D', deep: '#D98E1B', foam: true },
+    { key: 'wine',     name: '职场新人', stage: '职场新人', drinkName: '葡萄汁', score: 55,  steps: [55, 65, 75], stages: ['初入', '上手', '转正'], cupCount: 20, pourRate: 0.338, alpha: 0.82, bubbles: false,
+      line: '只倒三分之一——职场第一课：留余地。', wisdom: '葡萄汁只倒三分满。杯留余地，人也留余地，香气才进得来。', color: '#8E2434', deep: '#6B1424', foam: false },
+    { key: 'baijiu',   name: '职场中坚', stage: '职场中坚', drinkName: '玉露', score: 85,  steps: [85, 100, 115], stages: ['扛事', '带队', '掌局'], cupCount: 20, pourRate: 0.338, alpha: 0.50, bubbles: false,
+      line: '这一杯，敬客户，也敬自己。', wisdom: '杯满敬人，话满误事。这一杯的分寸，是二十年饭局换的。', color: '#EDF5FB', deep: '#C7DCEC', foam: false },
     { key: 'tea',      name: '人间清醒', stage: '职场老人', drinkName: '茶',   score: 130, steps: [130, 145, 160], stages: ['观局', '知止', '不惑'], cupCount: 20, pourRate: 0.338, alpha: 0.85, bubbles: false,
       line: '七分是茶，三分是分寸。', wisdom: '茶倒七分满，剩下三分是情谊。倒得太满，烫的是端杯的人。', color: '#B4692E', deep: '#8A4A1C', foam: false },
     { key: 'warmmilk', name: '岁月回甘', stage: '老人',     drinkName: '温奶', score: 180, steps: [180, 210, 240], stages: ['回甘', '归简', '圆满'], cupCount: 20, pourRate: 0.338, alpha: 1.0, bubbles: false, gradSoft: 0.55,
-      line: '转了一大圈，又回到一杯奶。这一杯，敬岁月。', wisdom: '从奶瓶到酒杯又回到奶瓶。人生闭环，暖的都是同一个胃。', color: '#FFFFFF', deep: '#E3D5B5', foam: false }
+      line: '转了一大圈，又回到一杯奶。这一杯，敬岁月。', wisdom: '从奶瓶到杯又回到奶瓶。人生闭环，暖的都是同一个胃。', color: '#FFFFFF', deep: '#E3D5B5', foam: false }
   ];
 
   // ---------- 段位配置覆盖（src/tiers.config.js 可调脚本） ----------
