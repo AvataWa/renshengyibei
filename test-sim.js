@@ -70,7 +70,12 @@ for (let round = 0; round < 200 && game.state !== 'menu'; round++) {
   while (game.phase !== 'aim' && guard++ < 600) {
     if (game.phase === 'choice' && game.choiceRects && game.choiceRects.length) {
       const r = game.choiceRects[0];
-      env._press(r.x + 5, r.y + 5); // 点选第一张卡
+      env._press(r.x + 5, r.y + 5); // 点选第一张卡（1 秒误触锁内会被忽略，下帧再点）
+      choices++;
+      step(0.3);
+    } else if (game.phase === 'choice2' && game.choice2Rects && game.choice2Rects.length) {
+      const r2 = game.choice2Rects[0];
+      env._press(r2.x + 5, r2.y + 5);
       choices++;
       step(0.3);
     } else if (game.phase === 'press' && game.reverseCups > 0) {
@@ -100,6 +105,10 @@ if (game.state !== 'over') {
     if (game.phase === 'choice' && game.choiceRects && game.choiceRects.length) {
       const r = game.choiceRects[0];
       env._press(r.x + 5, r.y + 5);
+      step(0.3);
+    } else if (game.phase === 'choice2' && game.choice2Rects && game.choice2Rects.length) {
+      const r2 = game.choice2Rects[0];
+      env._press(r2.x + 5, r2.y + 5);
       step(0.3);
     } else if (game.phase === 'press' && game.reverseCups > 0) {
       step(3.0); // 反转模式：不定格，等水溢出

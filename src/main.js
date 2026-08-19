@@ -136,6 +136,17 @@
             window.addEventListener('mouseup', function () { cb(); });
             canvas.addEventListener('touchend', function (e) { e.preventDefault(); cb(); }, { passive: false });
           },
+      onTouchMove: isWx
+        ? function (cb) { wx.onTouchMove(function (e) { var t = e.touches[0]; if (t) cb(t.clientX, t.clientY); }); }
+        : function (cb) {
+            function pos(e) {
+              var r = canvas.getBoundingClientRect();
+              var p = (e.touches && e.touches[0]) || e;
+              if (p && p.clientX != null) cb(p.clientX - r.left, p.clientY - r.top);
+            }
+            canvas.addEventListener('mousemove', function (e) { if (e.buttons) pos(e); });
+            canvas.addEventListener('touchmove', function (e) { e.preventDefault(); pos(e); }, { passive: false });
+          },
       getStorage: isWx
         ? function (k) { try { return wx.getStorageSync('wg_' + k) || ''; } catch (e) { return ''; } }
         : function (k) { try { return localStorage.getItem('wg_' + k) || ''; } catch (e) { return ''; } },

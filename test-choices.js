@@ -65,11 +65,16 @@ console.log('2. 触发链路');
   ok(g.phase === 'choice', '应进入 choice 相位，实际 ' + g.phase);
   step(g, 0.1); // 渲染出 choiceRects
   ok(g.choiceRects && g.choiceRects.length === 3, '应有 3 个卡片热区');
+  // 1 秒误触锁：面板刚弹出时点击不生效
+  g.onPress(g.choiceRects[1].x + 5, g.choiceRects[1].y + 5);
+  ok(g.pendingChoice !== null, '弹出 1 秒内点击应被忽略（防误触）');
+  step(g, 1.1); // 锁定期结束
   const before = g.round;
   g.onPress(g.choiceRects[1].x + 5, g.choiceRects[1].y + 5); // 点中间卡
   ok(g.pendingChoice === null, '点选后清空待选');
   ok(g.round === before + 1, '点选后应进入下一杯');
   ok(g.phase === 'aim' || g.phase === 'press', '应回到倒水相位，实际 ' + g.phase);
+  ok(g.chosenList.length === 1, '已做选择应记录 1 条，实际 ' + g.chosenList.length);
 }
 
 // 3. 关键效果校验
@@ -81,11 +86,12 @@ console.log('3. 关键效果校验');
   ok(g.mods.completeScale === 1.1, 'B1 合格区倍率应为 1.1，实际 ' + g.mods.completeScale);
   ok(g.mods.perfectScale === 1.1, 'B1 完美区倍率应为 1.1，实际 ' + g.mods.perfectScale);
 
-  // D2 彩票中奖：立即 +20
+  // D2 彩票中奖：立即 +20（加分钳制在下段门槛前，选择不再改变段位）
   const g2 = makeGame();
   const s2 = g2.score;
   g2.applyChoice(Choices.POOL.find(c => c.id === 'D2'));
-  ok(g2.score === s2 + 20, 'D2 应立即 +20 分，实际 +' + (g2.score - s2));
+  ok(g2.score === Cups.TIERS[1].score - 1, 'D2 应顶到下段门槛前（' + (Cups.TIERS[1].score - 1) + '），实际 ' + g2.score);
+  ok(g2.tierIdx === 0, 'D2 后段位应保持不变');
 
   // D1 天赐良机：连击上限 5
   const g3 = makeGame();
@@ -102,12 +108,12 @@ console.log('3. 关键效果校验');
   ok(g4.state === 'play' && g4.phase === 'next', 'B5 失败保护应原地续杯，实际 ' + g4.state + '/' + g4.phase);
   ok(g4.mods.failProtect === 0, 'B5 保护次数应消耗');
 
-  // C12 重启人生：回到 0 段 ×2 分
+  // C12 重启人生：得分 ×1.5、完美 −10%（已改为不跨段效果）
   const g5 = makeGame();
   g5.tierIdx = 4; g5.score = Cups.TIERS[4].score;
   g5.applyChoice(Choices.POOL.find(c => c.id === 'C12'));
-  ok(g5.tierIdx === 0 && g5.score === 0, 'C12 应回到 0 段 0 分，实际 ' + g5.tierIdx + '/' + g5.score);
-  ok(g5.mods.scoreMult === 2, 'C12 得分应 ×2');
+  ok(g5.tierIdx === 4 && g5.score === Cups.TIERS[4].score, 'C12 不应再改变段位/当前分，实际 ' + g5.tierIdx + '/' + g5.score);
+  ok(g5.mods.scoreMult === 1.5, 'C12 得分应 ×1.5，实际 ' + g5.mods.scoreMult);
 
   // C14 退而不休：锁定段位
   const g6 = makeGame();
@@ -163,7 +169,7 @@ console.log('5. 段位之力抽屉');
       dual++;
       ok(g.pendingTierFx.length === 2, '二选一应抽出 2 条效果');
       ok(g.pendingTierFx[0].id !== g.pendingTierFx[1].id, '二选一两条不应重复');
-      step(g, 0.1); // 渲染 choice2Rects
+      step(g, 1.1); // 渲染 choice2Rects + 度过 1 秒误触锁
       ok(g.choice2Rects && g.choice2Rects.length === 2, '应有 2 个二选一热区');
       const r0 = g.choice2Rects[0];
       g.onPress(r0.x + 5, r0.y + 5);
@@ -186,7 +192,8 @@ console.log('5. 段位之力抽屉');
     g.applyChoice(d22);
     if (g.phase === 'choice2') {
       for (const f of g.pendingTierFx) ok(/^T[345]/.test(f.id), 'D22 效果应来自 3/4/5 段池: ' + f.id);
-      const r0 = (g.render(), g.choice2Rects[0]);
+      step(g, 1.1); // 渲染 + 度过误触锁
+      const r0 = g.choice2Rects[0];
       g.onPress(r0.x + 5, r0.y + 5);
     } else {
       const newIds = Object.keys(g.usedChoiceIds);
@@ -221,15 +228,35 @@ console.log('6. 选择后保杯');
   const g3 = makeGame();
   g3.score = 10;
   const cup3 = g3.cup.name;
-  g3.applyChoice(Choices.POOL.find(c => c.id === 'D2')); // 彩票 +20 → 跨段
-  ok(g3.tierIdx === 1, 'D2 后应升到 1 段，实际 ' + g3.tierIdx);
-  ok(g3.cup.name !== cup3, '段位变化后应重新抽杯');
+  g3.applyChoice(Choices.POOL.find(c => c.id === 'D2')); // 彩票 +20（钳制不跨段）
+  ok(g3.tierIdx === 0, 'D2 后段位应保持 0 段，实际 ' + g3.tierIdx);
+  ok(g3.cup.name === cup3, '段位未变应保留当前杯');
 
   // 下一局恢复默认：startGame 后杯型重新随机、修正清零
   const g4 = makeGame();
   g4.applyChoice(Choices.POOL.find(c => c.id === 'C9')); // 田忌赛马
   g4.startGame();
   ok(g4.mods.invertCups === false && g4._keepCup === false, '重开后杯型修正应恢复默认');
+  ok(g4.chosenList.length === 0 && g4.choiceListOpen === false, '重开后已做选择应清空');
+}
+
+// 7. 选择不改变段位：池中不得有跨段效果键，且任何选项应用后段位不变
+console.log('7. 选择不改变段位');
+{
+  const BAN = ['jumpNextTier', 'jumpNextStage', 'backTier', 'backStage', 'jumpDownRandom', 'restartMilk'];
+  for (const c of Choices.POOL) {
+    for (const k of BAN) ok(!(c.fx && c.fx[k] != null), c.id + ' 不应含跨段效果 ' + k);
+  }
+  // 全池应用一遍：任何选项执行后段位都应保持
+  for (const c of Choices.POOL) {
+    const g = makeGame();
+    g.tierIdx = 2; g.score = Cups.TIERS[2].score + 5;
+    const t0 = Cups.tierFor(g.score);
+    g.applyChoice(c);
+    if (g.phase === 'choice2') { step(g, 1.1); const r0 = g.choice2Rects[0]; g.onPress(r0.x + 5, r0.y + 5); }
+    ok(Cups.tierFor(g.score) === t0, c.id + ' 应用后段位不应变化');
+  }
+  console.log('   跨段效果清理校验完成');
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);

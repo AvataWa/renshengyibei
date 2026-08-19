@@ -130,6 +130,11 @@
     this.slowTapOn = false;
     this.reverseLock = false;
     this._keepCup = false;    // 人生选择后保杯标记（newRound 消费）
+    this.chosenList = [];     // 本局已做的人生选择（「已做选择」面板数据）
+    this.choiceOpenT = -10;   // 抽卡面板打开时刻（1 秒误触保护）
+    this.choiceListOpen = false; // 「已做选择」面板开关
+    this.listScroll = 0;      // 面板滚动偏移
+    this._listDrag = null;    // 面板拖动状态
   };
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
@@ -259,9 +264,16 @@
         case 'restartMilk': this.score = 0; break;
       }
     }
+    // 人生选择不再改变段位/瓶子：任何加分最多顶到下一段门槛前，段位只能靠倒水来升
+    if (this.tierIdx + 1 < Cups.TIERS.length) {
+      var capScore = Cups.TIERS[this.tierIdx + 1].score - 1;
+      if (this.score > capScore) this.score = capScore;
+    }
     this.tierIdx = Cups.tierFor(this.score);
     // 非换杯类选项且段位未变：下一杯继续用当前杯（杯子不该因为无关选择而变化）
     this._keepCup = !affectsCup && this.tierIdx === tierBefore;
+    // 记入「已做选择」
+    this.chosenList.push({ name: opt.name + (opt.tierDraw ? ' ◆' : ''), desc: opt.desc, cat: opt.cat });
     this.toast('「' + opt.name + '」已生效');
     this.pendingChoice = null;
     this.pendingTierFx = null;
@@ -291,11 +303,14 @@
       return { id: f.id, cat: 'D', name: f.name, desc: f.desc, flavor: tierName + '之力注入了这一杯。', fx: f.fx };
     });
     if (picks.length === 1) {
+      this.chosenList.push({ name: opt.name + ' ◆', desc: '抽中' + tierName + '之力 · ' + picks[0].name, cat: 'D' });
       this.toast('抽到' + tierName + '之力');
       this.applyChoice(picks[0]);
     } else {
       this.pendingTierFx = picks;
       this.phase = 'choice2';
+      this.choiceOpenT = this.time; // 1 秒误触保护
+      this.chosenList.push({ name: opt.name + ' ◆', desc: '抽中' + tierName + '之力（二选一）', cat: 'D' });
       this.toast('抽到' + tierName + '之力：二选一');
     }
   };
@@ -345,6 +360,16 @@
     var self = this;
     this.env.onTouchStart(function (x, y) { self.onPress(x, y); });
     this.env.onTouchEnd(function () { self.onRelease(); });
+    if (this.env.onTouchMove) this.env.onTouchMove(function (x, y) { self.onMove(x, y); });
+  };
+
+  // 拖动（「已做选择」面板列表滚动）
+  Game.prototype.onMove = function (x, y) {
+    if (this.choiceListOpen && this._listDrag) {
+      var P = this._listPanel || {};
+      var maxS = P.maxScroll || 0;
+      this.listScroll = Math.max(0, Math.min(maxS, this._listDrag.scroll + (this._listDrag.y - y)));
+    }
   };
 
   Game.prototype.onPress = function (x, y) {
@@ -358,8 +383,30 @@
       return;
     }
     if (this.state === 'play') {
-      // 人生选择：点选三张卡之一
+      // 「已做选择」面板打开时：只响应面板操作（关闭/拖动列表），不触发倒水
+      if (this.choiceListOpen) {
+        var P = this._listPanel || {};
+        if (P.close && x >= P.close.x && x <= P.close.x + P.close.w && y >= P.close.y && y <= P.close.y + P.close.h) {
+          this.choiceListOpen = false;
+          return;
+        }
+        if (P.list && x >= P.list.x && x <= P.list.x + P.list.w && y >= P.list.y && y <= P.list.y + P.list.h) {
+          this._listDrag = { y: y, scroll: this.listScroll };
+        }
+        return;
+      }
+      // 右下角「已做选择」按钮
+      if (this.phase !== 'choice' && this.phase !== 'choice2') {
+        var cb = this.choicesBtnRect();
+        if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
+          this.choiceListOpen = true;
+          this._listDrag = null;
+          return;
+        }
+      }
+      // 人生选择：点选三张卡之一（弹出 1 秒内不响应，防误触）
       if (this.phase === 'choice') {
+        if (this.time - this.choiceOpenT < 1) return;
         var rs = this.choiceRects || [];
         for (var ci = 0; ci < rs.length; ci++) {
           var r = rs[ci];
@@ -367,8 +414,9 @@
         }
         return;
       }
-      // 段位之力二选一：点选两张效果卡之一
+      // 段位之力二选一：点选两张效果卡之一（同样 1 秒误触保护）
       if (this.phase === 'choice2') {
+        if (this.time - this.choiceOpenT < 1) return;
         var rs2 = this.choice2Rects || [];
         for (var cj = 0; cj < rs2.length; cj++) {
           var r2 = rs2[cj];
@@ -414,6 +462,7 @@
   };
 
   Game.prototype.onRelease = function () {
+    this._listDrag = null;
     // 反转模式：松手不触发判定（定格由点按完成）
     if (this.state === 'play' && this.reverseCups > 0 && !this.reverseLock) return;
     if (this.state === 'play' && this.phase === 'press') {
@@ -661,9 +710,10 @@
   Game.prototype.fail = function (reason) {
     this.perfectStreak = 0;
     var m = this.mods;
-    // 日更写作：失败额外扣分
+    // 日更写作：失败额外扣分（不会因此掉段——段位只随倒水前进）
     if (m.failPenalty > 0) {
-      this.score = Math.max(0, this.score - m.failPenalty);
+      var floor = Cups.TIERS[this.tierIdx].score;
+      this.score = Math.max(floor, this.score - m.failPenalty);
       this.floats.push({ text: '-' + m.failPenalty, x: this.W / 2, y: this.cupTop - this.H * 0.10, life: 1.2, color: '#C0392B', size: 0.036 });
     }
     // 体检报告正常 / 贵人相助：失败保护，原地续杯
@@ -789,8 +839,8 @@
     } else if (this.phase === 'next') {
       this.phaseTimer -= dt;
       if (this.phaseTimer <= 0) {
-        // 有人生选择待选：进入抽卡相位（冻结，等待点选）
-        if (this.pendingChoice) this.phase = 'choice';
+        // 有人生选择待选：进入抽卡相位（冻结，等待点选；1 秒误触保护）
+        if (this.pendingChoice) { this.phase = 'choice'; this.choiceOpenT = this.time; }
         else this.newRound();
       }
     } else if (this.phase === 'failed') {
@@ -916,6 +966,14 @@
     // 人生选择三选一（局内最顶层，半透压暗背景）
     if (this.state === 'play' && this.phase === 'choice') this.drawChoice();
     if (this.state === 'play' && this.phase === 'choice2') this.drawChoice2();
+    if (this.state === 'play' && this.phase !== 'choice' && this.phase !== 'choice2') this.drawChoicesBtn();
+    if (this.state === 'play' && this.choiceListOpen) this.drawChoicesList();
+  };
+
+  // 右下角「已做选择」按钮热区
+  Game.prototype.choicesBtnRect = function () {
+    var w = this.W * 0.26, h = this.H * 0.05;
+    return { x: this.W * 0.97 - w, y: this.H * 0.90, w: w, h: h };
   };
 
   Game.prototype.drawBackground = function () {
@@ -1470,87 +1528,84 @@
     ctx.globalAlpha = 1;
   };
 
-  // ---------------- 人生选择 · 三选一抽卡界面（升段/升阶触发，不可跳过） ----------------
-  Game.prototype.drawChoice = function () {
-    var ctx = this.ctx, W = this.W, H = this.H;
-    var cards = this.pendingChoice || [];
-    // 半透压暗背景（保留局内画面）
-    ctx.fillStyle = 'rgba(43,42,38,0.45)';
-    ctx.fillRect(0, 0, W, H);
-    // 主面板
-    var px = W * 0.06, py = H * 0.17, pw = W * 0.88, ph = H * 0.68;
-    ctx.fillStyle = PAL.CARD;
-    this.roundRect(px, py, pw, ph, 20);
-    ctx.fill();
-    ctx.strokeStyle = PAL.TRACK; ctx.lineWidth = 3; ctx.stroke();
+  // 文本按宽度折行（逐字累积测量）
+  Game.prototype.wrapLines = function (text, maxW) {
+    var ctx = this.ctx, lines = [], cur = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (cur && ctx.measureText(cur + ch).width > maxW) { lines.push(cur); cur = ch; }
+      else cur += ch;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
 
-    ctx.textAlign = 'center';
-    ctx.fillStyle = PAL.INK;
-    ctx.font = 'bold ' + Math.round(H * 0.038) + 'px sans-serif';
-    ctx.fillText('人生路口', W / 2, py + H * 0.062);
-    ctx.font = Math.round(H * 0.017) + 'px sans-serif';
-    ctx.fillStyle = PAL.MUTED;
-    ctx.fillText(Cups.rankFor(this.score).label + ' · 选择一种际遇', W / 2, py + H * 0.10);
-
-    // 三张选项卡
-    var cx = px + W * 0.05, cw = pw - W * 0.10;
-    var ch = H * 0.145, gap = H * 0.022, y0 = py + H * 0.14;
-    this.choiceRects = [];
+  // 抽卡竖卡绘制（三选一/二选一共用）：横排、内容折行、锁定期半透明
+  Game.prototype.drawChoiceCards = function (cards, rects, cw, ch, y0, px, side, gap, locked) {
+    var ctx = this.ctx, H = this.H;
     for (var i = 0; i < cards.length; i++) {
       var c = cards[i];
-      var y = y0 + i * (ch + gap);
-      this.choiceRects.push({ x: cx, y: y, w: cw, h: ch, opt: c });
+      var cx = px + side + i * (cw + gap);
+      rects.push({ x: cx, y: y0, w: cw, h: ch, opt: c });
       var meta = Choices.CATS[c.cat] || Choices.CATS.A;
       var rare = c.cat === 'D';
+      ctx.save();
+      if (locked) ctx.globalAlpha = 0.45;
       ctx.fillStyle = '#FFFFFF';
-      this.roundRect(cx, y, cw, ch, 16);
+      this.roundRect(cx, y0, cw, ch, 14);
       ctx.fill();
       ctx.strokeStyle = rare ? '#E8A33D' : PAL.TRACK;
       ctx.lineWidth = rare ? 4 : 2;
       ctx.stroke();
-      // 分类 chip（居中；稀有卡左侧加菱形标记）
-      ctx.font = 'bold ' + Math.round(H * 0.014) + 'px sans-serif';
-      var chipTxt = meta.label;
+      var mid = cx + cw / 2;
+      // 分类 chip（居中，稀有卡带 ◆）
+      ctx.font = 'bold ' + Math.round(H * 0.0135) + 'px sans-serif';
+      var chipTxt = (rare ? '◆ ' : '') + meta.label;
       var chipTw = ctx.measureText(chipTxt).width;
-      var chipX = W / 2 - chipTw / 2 - (rare ? 6 : 0);
-      var chipY = y + ch * 0.09, chipH = H * 0.028;
+      var chipH = H * 0.026, chipY = y0 + ch * 0.055;
       ctx.fillStyle = meta.bg;
-      this.roundRect(chipX - 13, chipY, chipTw + 26, chipH, chipH / 2);
+      this.roundRect(mid - chipTw / 2 - 10, chipY, chipTw + 20, chipH, chipH / 2);
       ctx.fill();
       ctx.fillStyle = meta.color;
-      ctx.fillText(chipTxt, chipX + chipTw / 2, chipY + chipH * 0.72);
-      if (rare) {
-        var dxc = chipX - 4, dyc = chipY + chipH / 2, ds = H * 0.006;
-        ctx.beginPath();
-        ctx.moveTo(dxc, dyc - ds); ctx.lineTo(dxc + ds, dyc); ctx.lineTo(dxc, dyc + ds); ctx.lineTo(dxc - ds, dyc);
-        ctx.closePath(); ctx.fill();
-      }
-      // 选项名（段位之力带 ✦ 标记）
+      ctx.fillText(chipTxt, mid, chipY + chipH * 0.72);
+      // 选项名（最多 2 行）
       ctx.fillStyle = PAL.INK;
-      ctx.font = 'bold ' + Math.round(H * 0.028) + 'px sans-serif';
-      ctx.fillText(c.name + (c.tierDraw ? ' ◆' : ''), W / 2, y + ch * 0.48);
-      // 效果
-      ctx.font = Math.round(H * 0.017) + 'px sans-serif';
+      ctx.font = 'bold ' + Math.round(H * 0.023) + 'px sans-serif';
+      var nameTxt = c.name + (c.tierDraw ? ' ◆' : '');
+      var nLines = this.wrapLines(nameTxt, cw - 12).slice(0, 2);
+      for (var nl = 0; nl < nLines.length; nl++) {
+        ctx.fillText(nLines[nl], mid, y0 + ch * 0.25 + nl * H * 0.030);
+      }
+      // 效果说明（最多 5 行）
+      ctx.font = Math.round(H * 0.0155) + 'px sans-serif';
       ctx.fillStyle = '#3A3833';
-      ctx.fillText(c.tierDraw ? '抽出后随机选定段位生效' : c.desc, W / 2, y + ch * 0.70);
-      // 感悟小字
-      ctx.font = Math.round(H * 0.013) + 'px sans-serif';
+      var dTxt = c.tierDraw ? '抽出后随机选定段位生效' : c.desc;
+      var dLines = this.wrapLines(dTxt, cw - 14).slice(0, 5);
+      for (var dl = 0; dl < dLines.length; dl++) {
+        ctx.fillText(dLines[dl], mid, y0 + ch * 0.44 + dl * H * 0.024);
+      }
+      // 感悟小字（最多 4 行）
+      ctx.font = Math.round(H * 0.0125) + 'px sans-serif';
       ctx.fillStyle = PAL.MUTED;
-      ctx.fillText(c.flavor, W / 2, y + ch * 0.88);
+      var fLines = this.wrapLines(c.flavor || '', cw - 14).slice(0, 4);
+      for (var fl = 0; fl < fLines.length; fl++) {
+        ctx.fillText(fLines[fl], mid, y0 + ch * 0.75 + fl * H * 0.019);
+      }
+      ctx.restore();
     }
-
-    ctx.font = Math.round(H * 0.014) + 'px sans-serif';
-    ctx.fillStyle = PAL.MUTED;
-    ctx.fillText('选择后本局生效 · 点击卡片做出选择', W / 2, py + ph - H * 0.018);
   };
 
-  // 段位之力 · 二选一（抽中 2 条效果时展示）
-  Game.prototype.drawChoice2 = function () {
+  // ---------------- 人生选择 · 三选一抽卡界面（升段/升阶触发，不可跳过） ----------------
+  // 横排三竖卡，面板位于屏幕上半部不遮杯子；弹出 1 秒内不响应点击（防误触）
+  Game.prototype.drawChoice = function () {
     var ctx = this.ctx, W = this.W, H = this.H;
-    var cards = this.pendingTierFx || [];
+    var cards = this.pendingChoice || [];
+    var locked = (this.time - this.choiceOpenT) < 1;
+    // 半透压暗背景（保留局内画面）
     ctx.fillStyle = 'rgba(43,42,38,0.45)';
     ctx.fillRect(0, 0, W, H);
-    var px = W * 0.06, py = H * 0.26, pw = W * 0.88, ph = H * 0.50;
+    // 主面板
+    var px = W * 0.045, py = H * 0.115, pw = W * 0.91, ph = H * 0.575;
     ctx.fillStyle = PAL.CARD;
     this.roundRect(px, py, pw, ph, 20);
     ctx.fill();
@@ -1559,40 +1614,147 @@
     ctx.textAlign = 'center';
     ctx.fillStyle = PAL.INK;
     ctx.font = 'bold ' + Math.round(H * 0.038) + 'px sans-serif';
-    ctx.fillText('段位之力 ◆', W / 2, py + H * 0.07);
+    ctx.fillText('人生路口', W / 2, py + H * 0.058);
     ctx.font = Math.round(H * 0.017) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
-    ctx.fillText('两种力量同时涌现 · 选择其一', W / 2, py + H * 0.115);
+    ctx.fillText(Cups.rankFor(this.score).label + ' · 选择一种际遇', W / 2, py + H * 0.098);
 
-    var meta = Choices.CATS.D;
-    var cx = px + W * 0.05, cw = pw - W * 0.10;
-    var ch = H * 0.155, gap = H * 0.025, y0 = py + H * 0.16;
-    this.choice2Rects = [];
-    for (var i = 0; i < cards.length; i++) {
-      var c = cards[i];
-      var y = y0 + i * (ch + gap);
-      this.choice2Rects.push({ x: cx, y: y, w: cw, h: ch, opt: c });
-      ctx.fillStyle = '#FFFFFF';
-      this.roundRect(cx, y, cw, ch, 16);
-      ctx.fill();
-      ctx.strokeStyle = '#E8A33D'; ctx.lineWidth = 4; ctx.stroke();
-      // 效果名
-      ctx.fillStyle = PAL.INK;
-      ctx.font = 'bold ' + Math.round(H * 0.027) + 'px sans-serif';
-      ctx.fillText(c.name, W / 2, y + ch * 0.40);
-      // 效果说明
-      ctx.font = Math.round(H * 0.018) + 'px sans-serif';
-      ctx.fillStyle = '#3A3833';
-      ctx.fillText(c.desc, W / 2, y + ch * 0.62);
-      // 感悟小字
-      ctx.font = Math.round(H * 0.013) + 'px sans-serif';
-      ctx.fillStyle = meta.color;
-      ctx.fillText(c.flavor, W / 2, y + ch * 0.84);
-    }
+    // 三张竖卡横排
+    var side = W * 0.05, gap = W * 0.024;
+    var cw = (pw - side * 2 - gap * 2) / 3;
+    var ch = H * 0.38, y0 = py + H * 0.135;
+    this.choiceRects = [];
+    this.drawChoiceCards(cards, this.choiceRects, cw, ch, y0, px, side, gap, locked);
 
     ctx.font = Math.round(H * 0.014) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
-    ctx.fillText('点击卡片做出选择', W / 2, py + ph - H * 0.022);
+    ctx.fillText(locked ? '请稍候…' : '选择后本局生效 · 点击卡片做出选择', W / 2, py + ph - H * 0.022);
+  };
+
+  // 段位之力 · 二选一（抽中 2 条效果时展示；同款横排布局 + 1 秒锁）
+  Game.prototype.drawChoice2 = function () {
+    var ctx = this.ctx, W = this.W, H = this.H;
+    var cards = this.pendingTierFx || [];
+    var locked = (this.time - this.choiceOpenT) < 1;
+    ctx.fillStyle = 'rgba(43,42,38,0.45)';
+    ctx.fillRect(0, 0, W, H);
+    var px = W * 0.045, py = H * 0.115, pw = W * 0.91, ph = H * 0.575;
+    ctx.fillStyle = PAL.CARD;
+    this.roundRect(px, py, pw, ph, 20);
+    ctx.fill();
+    ctx.strokeStyle = PAL.TRACK; ctx.lineWidth = 3; ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = PAL.INK;
+    ctx.font = 'bold ' + Math.round(H * 0.038) + 'px sans-serif';
+    ctx.fillText('段位之力 ◆', W / 2, py + H * 0.058);
+    ctx.font = Math.round(H * 0.017) + 'px sans-serif';
+    ctx.fillStyle = PAL.MUTED;
+    ctx.fillText('两种力量同时涌现 · 选择其一', W / 2, py + H * 0.098);
+
+    // 两张竖卡横排
+    var side = W * 0.05, gap = W * 0.024;
+    var cw = (pw - side * 2 - gap) / 2;
+    var ch = H * 0.38, y0 = py + H * 0.135;
+    this.choice2Rects = [];
+    this.drawChoiceCards(cards, this.choice2Rects, cw, ch, y0, px, side, gap, locked);
+
+    ctx.font = Math.round(H * 0.014) + 'px sans-serif';
+    ctx.fillStyle = PAL.MUTED;
+    ctx.fillText(locked ? '请稍候…' : '点击卡片做出选择', W / 2, py + ph - H * 0.022);
+  };
+
+  // ---------------- 「已做选择」按钮 + 可滑动列表面板 ----------------
+  Game.prototype.drawChoicesBtn = function () {
+    var ctx = this.ctx, r = this.choicesBtnRect();
+    ctx.fillStyle = 'rgba(43,42,38,0.12)';
+    this.roundRect(r.x, r.y + 3, r.w, r.h, r.h / 2);
+    ctx.fill();
+    ctx.fillStyle = PAL.CARD;
+    this.roundRect(r.x, r.y, r.w, r.h, r.h / 2);
+    ctx.fill();
+    ctx.strokeStyle = PAL.TRACK; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = PAL.INK;
+    ctx.font = 'bold ' + Math.round(r.h * 0.36) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    var n = this.chosenList ? this.chosenList.length : 0;
+    ctx.fillText('已做选择' + (n ? ' ' + n : ''), r.x + r.w / 2, r.y + r.h * 0.66);
+  };
+
+  Game.prototype.drawChoicesList = function () {
+    var ctx = this.ctx, W = this.W, H = this.H;
+    ctx.fillStyle = 'rgba(43,42,38,0.45)';
+    ctx.fillRect(0, 0, W, H);
+    var px = W * 0.08, py = H * 0.15, pw = W * 0.84, ph = H * 0.64;
+    ctx.fillStyle = PAL.CARD;
+    this.roundRect(px, py, pw, ph, 20);
+    ctx.fill();
+    ctx.strokeStyle = PAL.TRACK; ctx.lineWidth = 3; ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = PAL.INK;
+    ctx.font = 'bold ' + Math.round(H * 0.034) + 'px sans-serif';
+    ctx.fillText('本局际遇（' + this.chosenList.length + '）', W / 2, py + H * 0.058);
+
+    // 列表区域（裁剪 + 滚动）
+    var lx = px + W * 0.05, lw = pw - W * 0.10;
+    var ly = py + H * 0.095, lh = ph - H * 0.095 - H * 0.085;
+    var itemH = H * 0.072;
+    var maxScroll = Math.max(0, this.chosenList.length * itemH - lh);
+    this.listScroll = Math.max(0, Math.min(maxScroll, this.listScroll));
+    this._listPanel = { list: { x: lx, y: ly, w: lw, h: lh }, close: null, maxScroll: maxScroll };
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(lx, ly, lw, lh); ctx.clip();
+    if (!this.chosenList.length) {
+      ctx.fillStyle = PAL.MUTED;
+      ctx.font = Math.round(H * 0.02) + 'px sans-serif';
+      ctx.fillText('这一局还没有做过选择', W / 2, ly + lh / 2);
+    }
+    for (var i = 0; i < this.chosenList.length; i++) {
+      var c = this.chosenList[i];
+      var iy = ly + i * itemH - this.listScroll;
+      if (iy + itemH < ly || iy > ly + lh) continue;
+      var meta = Choices.CATS[c.cat] || Choices.CATS.A;
+      ctx.fillStyle = '#FFFFFF';
+      this.roundRect(lx, iy + 4, lw, itemH - 8, 12);
+      ctx.fill();
+      ctx.fillStyle = meta.color;
+      ctx.beginPath(); ctx.arc(lx + 16, iy + itemH / 2, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.textAlign = 'left';
+      ctx.fillStyle = PAL.INK;
+      ctx.font = 'bold ' + Math.round(H * 0.019) + 'px sans-serif';
+      ctx.fillText(c.name, lx + 30, iy + itemH * 0.42);
+      ctx.fillStyle = PAL.MUTED;
+      ctx.font = Math.round(H * 0.015) + 'px sans-serif';
+      var dsc = c.desc;
+      while (dsc.length > 1 && ctx.measureText(dsc).width > lw - 44) dsc = dsc.slice(0, -1);
+      if (dsc !== c.desc) dsc = dsc.slice(0, -1) + '…';
+      ctx.fillText(dsc, lx + 30, iy + itemH * 0.76);
+      ctx.textAlign = 'center';
+    }
+    ctx.restore();
+
+    // 滚动条指示
+    if (maxScroll > 0) {
+      var total = this.chosenList.length * itemH;
+      var barH = Math.max(H * 0.03, lh * lh / total);
+      var barY = ly + (this.listScroll / maxScroll) * (lh - barH);
+      ctx.fillStyle = 'rgba(43,42,38,0.18)';
+      this.roundRect(lx + lw + 3, barY, 4, barH, 2);
+      ctx.fill();
+    }
+
+    // 关闭按钮
+    var cw2 = W * 0.4, ch2 = H * 0.05;
+    var cx2 = W / 2 - cw2 / 2, cy2 = py + ph - H * 0.068;
+    ctx.fillStyle = PAL.INK;
+    this.roundRect(cx2, cy2, cw2, ch2, ch2 / 2);
+    ctx.fill();
+    ctx.fillStyle = PAL.CARD;
+    ctx.font = 'bold ' + Math.round(ch2 * 0.38) + 'px sans-serif';
+    ctx.fillText('关闭', W / 2, cy2 + ch2 * 0.66);
+    this._listPanel.close = { x: cx2, y: cy2, w: cw2, h: ch2 };
   };
 
   // ---------------- 主界面（极简 · 点击屏幕开始） ----------------
@@ -1624,6 +1786,60 @@
       var hw = hh * aspect;
       var hBottom = H * 0.44;
       ctx.drawImage(heroes.img, (W - hw) / 2, hBottom - hh, hw, hh);
+    } else {
+      // 素材未加载时的矢量兜底：奶盒/可乐瓶/啤酒瓶/茶壶/白酒瓶前后错落
+      var base2 = H * 0.44;
+      var specs = [
+        { dx: -0.31, w: 0.115, h: 0.150, c: '#A9CFE8', e: '#3E5C76', kind: 'carton' },
+        { dx: -0.155, w: 0.085, h: 0.190, c: '#4A2C1A', e: '#2E1B10', kind: 'cola' },
+        { dx: 0, w: 0.075, h: 0.172, c: '#C97B2D', e: '#7A4A18', kind: 'bottle' },
+        { dx: 0.155, w: 0.150, h: 0.115, c: '#8A5A3B', e: '#5B3A24', kind: 'teapot' },
+        { dx: 0.31, w: 0.075, h: 0.162, c: '#EFEAE0', e: '#9A9488', kind: 'bottle' }
+      ];
+      for (var hi = 0; hi < specs.length; hi++) {
+        var s = specs[hi];
+        var bx = W / 2 + s.dx * W, bw2 = s.w * W, bh2 = s.h * H;
+        var by2 = base2 - bh2 - (hi % 2 ? H * 0.014 : 0);
+        ctx.fillStyle = s.c; ctx.strokeStyle = s.e; ctx.lineWidth = 3;
+        if (s.kind === 'carton') {
+          this.roundRect(bx - bw2 / 2, by2 + bh2 * 0.28, bw2, bh2 * 0.72, 4);
+          ctx.fill(); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(bx - bw2 / 2, by2 + bh2 * 0.28);
+          ctx.lineTo(bx, by2);
+          ctx.lineTo(bx + bw2 / 2, by2 + bh2 * 0.28);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(bx - bw2 * 0.32, by2 + bh2 * 0.48, bw2 * 0.64, bh2 * 0.16);
+        } else if (s.kind === 'teapot') {
+          ctx.beginPath();
+          ctx.ellipse(bx, by2 + bh2 * 0.60, bw2 * 0.44, bh2 * 0.38, 0, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+          ctx.beginPath(); // 壶嘴
+          ctx.moveTo(bx + bw2 * 0.36, by2 + bh2 * 0.48);
+          ctx.lineTo(bx + bw2 * 0.60, by2 + bh2 * 0.20);
+          ctx.lineTo(bx + bw2 * 0.66, by2 + bh2 * 0.32);
+          ctx.lineTo(bx + bw2 * 0.45, by2 + bh2 * 0.60);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); // 把手
+          ctx.arc(bx - bw2 * 0.44, by2 + bh2 * 0.52, bh2 * 0.22, Math.PI * 0.45, Math.PI * 1.55);
+          ctx.stroke();
+          ctx.beginPath(); // 盖钮
+          ctx.arc(bx, by2 + bh2 * 0.16, bh2 * 0.07, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+        } else {
+          this.roundRect(bx - bw2 / 2, by2 + bh2 * 0.30, bw2, bh2 * 0.70, bw2 * 0.3);
+          ctx.fill(); ctx.stroke();
+          ctx.fillRect(bx - bw2 * 0.16, by2 + bh2 * 0.08, bw2 * 0.32, bh2 * 0.26);
+          ctx.strokeRect(bx - bw2 * 0.16, by2 + bh2 * 0.08, bw2 * 0.32, bh2 * 0.26);
+          ctx.fillRect(bx - bw2 * 0.20, by2, bw2 * 0.40, bh2 * 0.10);
+          ctx.strokeRect(bx - bw2 * 0.20, by2, bw2 * 0.40, bh2 * 0.10);
+          if (s.kind === 'cola') { // 可乐红标
+            ctx.fillStyle = '#D43D2A';
+            ctx.fillRect(bx - bw2 / 2, by2 + bh2 * 0.50, bw2, bh2 * 0.16);
+          }
+        }
+      }
     }
 
     // —— 点击屏幕开始（呼吸感） ——
