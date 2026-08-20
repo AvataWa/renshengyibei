@@ -1084,16 +1084,34 @@
     }
 
     // 区域：不合格(灰) 合格(淡黄) 完美(淡绿) —— 策划案三色区
+    // 按杯壁轮廓描带填充，不依赖 clip（微信端 clip 可能失效导致色带溢出杯壁）
     ctx.save();
     this.traceCup(0.04);
     ctx.clip();
-    var top = this.cupTop, h = this.cupH;
-    ctx.fillStyle = 'rgba(43,42,38,0.06)';
-    ctx.fillRect(0, top - 4, this.W, h + 8);
-    ctx.fillStyle = 'rgba(242,201,76,0.45)'; // 合格区（主题黄）
-    ctx.fillRect(0, this.baseY - z.q[1] * h, this.W, (z.q[1] - z.q[0]) * h);
-    ctx.fillStyle = 'rgba(190,222,150,0.80)'; // 完美区（柔和绿）
-    ctx.fillRect(0, this.baseY - z.p[1] * h, this.W, (z.p[1] - z.p[0]) * h);
+    var h = this.cupH;
+    var band = function (t0, t1, color) {
+      if (t1 <= t0) return;
+      var BN = 16, bi, bt, bw2, by;
+      ctx.beginPath();
+      for (bi = 0; bi <= BN; bi++) {
+        bt = t0 + (t1 - t0) * bi / BN;
+        bw2 = this.halfW * cup.profile(bt) * 0.96;
+        by = this.baseY - bt * h;
+        if (bi === 0) ctx.moveTo(this.cx - bw2, by); else ctx.lineTo(this.cx - bw2, by);
+      }
+      for (bi = BN; bi >= 0; bi--) {
+        bt = t0 + (t1 - t0) * bi / BN;
+        bw2 = this.halfW * cup.profile(bt) * 0.96;
+        by = this.baseY - bt * h;
+        ctx.lineTo(this.cx + bw2, by);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }.bind(this);
+    band(0, 1, 'rgba(43,42,38,0.06)');            // 不合格区（整杯灰底）
+    band(z.q[0], z.q[1], 'rgba(242,201,76,0.45)'); // 合格区（主题黄）
+    band(z.p[0], z.p[1], 'rgba(190,222,150,0.80)'); // 完美区（柔和绿）
 
     // 水（带波浪液面）
     if (this.level > 0.001) {
