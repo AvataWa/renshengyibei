@@ -143,7 +143,7 @@
     var qc = (z.q[0] + z.q[1]) / 2;
     var qw = (z.q[1] - z.q[0]) * m.completeScale;
     var pw = (z.p[1] - z.p[0]) * m.perfectScale;
-    if (m.comboZoneGrow) pw *= 1 + 0.05 * this.perfectStreak; // 时间的玫瑰
+    if (m.comboZoneGrow) pw *= 1 + Math.min(0.5, 0.05 * this.perfectStreak); // 时间的玫瑰（上限 +50%）
     var shift = m.zoneShift + this.zoneShiftRound;
     if (m.zoneWander) shift += Math.sin(this.time * 0.9) * 0.03; // 独立带娃
     var qLo = qc - qw / 2 + shift, qHi = qc + qw / 2 + shift;
@@ -1110,7 +1110,7 @@
       ctx.fill();
     }.bind(this);
     band(0, 1, 'rgba(43,42,38,0.06)');            // 不合格区（整杯灰底）
-    band(z.q[0], z.q[1], 'rgba(242,201,76,0.45)'); // 合格区（主题黄）
+    if (!this.mods.noCompleteZone) band(z.q[0], z.q[1], 'rgba(242,201,76,0.45)'); // 合格区（背水一战时关闭）
     band(z.p[0], z.p[1], 'rgba(190,222,150,0.80)'); // 完美区（柔和绿）
 
     // 水（带波浪液面）
@@ -1268,7 +1268,7 @@
     ctx.setLineDash([6, 6]);
     ctx.strokeStyle = 'rgba(43,42,38,0.30)';
     ctx.lineWidth = 1.5;
-    var lines = [z.q[0], z.q[1]];
+    var lines = this.mods.noCompleteZone ? [z.p[0], z.p[1]] : [z.q[0], z.q[1]]; // 背水一战时标注完美区边界
     for (var li = 0; li < lines.length; li++) {
       var wAt = this.halfW * cup.profile(lines[li]);
       var yy = this.baseY - lines[li] * h;

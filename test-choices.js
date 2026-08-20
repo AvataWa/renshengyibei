@@ -1,4 +1,4 @@
-// 人生选择系统专项测试：全池 80 项效果冒烟 + 触发链路 + 关键效果校验
+// 人生选择系统专项测试：全池效果冒烟 + 触发链路 + 关键效果校验
 const Game = require('./src/game.js');
 const Choices = require('./src/choices.js');
 const Cups = require('./src/cups.js');
@@ -36,8 +36,8 @@ function ok(cond, msg) {
 }
 
 // 1. 全池冒烟：每个选项都能应用且不抛异常
-console.log('1. 全池 83 项效果冒烟');
-ok(Choices.POOL.length === 83, '选项池应为 83 项，实际 ' + Choices.POOL.length);
+console.log('1. 全池 65 项效果冒烟');
+ok(Choices.POOL.length === 65, '选项池应为 65 项，实际 ' + Choices.POOL.length);
 for (const opt of Choices.POOL) {
   try {
     const g = makeGame();
@@ -86,9 +86,8 @@ console.log('3. 关键效果校验');
   ok(g.mods.completeScale === 1.1, 'B1 合格区倍率应为 1.1，实际 ' + g.mods.completeScale);
   ok(g.mods.perfectScale === 1.1, 'B1 完美区倍率应为 1.1，实际 ' + g.mods.perfectScale);
 
-  // D2 彩票中奖：立即 +20（加分钳制在下段门槛前，选择不再改变段位）
+  // D2 彩票中奖：立即 +40（加分钳制在下段门槛前，选择不再改变段位）
   const g2 = makeGame();
-  const s2 = g2.score;
   g2.applyChoice(Choices.POOL.find(c => c.id === 'D2'));
   ok(g2.score === Cups.TIERS[1].score - 1, 'D2 应顶到下段门槛前（' + (Cups.TIERS[1].score - 1) + '），实际 ' + g2.score);
   ok(g2.tierIdx === 0, 'D2 后段位应保持不变');
@@ -108,30 +107,33 @@ console.log('3. 关键效果校验');
   ok(g4.state === 'play' && g4.phase === 'next', 'B5 失败保护应原地续杯，实际 ' + g4.state + '/' + g4.phase);
   ok(g4.mods.failProtect === 0, 'B5 保护次数应消耗');
 
-  // C12 重启人生：得分 ×1.5、完美 −10%（已改为不跨段效果）
-  const g5 = makeGame();
-  g5.tierIdx = 4; g5.score = Cups.TIERS[4].score;
-  g5.applyChoice(Choices.POOL.find(c => c.id === 'C12'));
-  ok(g5.tierIdx === 4 && g5.score === Cups.TIERS[4].score, 'C12 不应再改变段位/当前分，实际 ' + g5.tierIdx + '/' + g5.score);
-  ok(g5.mods.scoreMult === 1.5, 'C12 得分应 ×1.5，实际 ' + g5.mods.scoreMult);
-
-  // C14 退而不休：锁定段位
-  const g6 = makeGame();
-  g6.tierIdx = 4; g6.score = Cups.TIERS[4].score;
-  g6.applyChoice(Choices.POOL.find(c => c.id === 'C14'));
-  g6.win(2, '完美!');
-  ok(g6.score <= Cups.TIERS[5].score - 1, 'C14 分数应被锁在下段门槛前，实际 ' + g6.score);
-
-  // A6 高压考核：误触保护关闭
-  const g7 = makeGame();
-  g7.applyChoice(Choices.POOL.find(c => c.id === 'A6'));
-  ok(g7.mods.tapProtect === false, 'A6 应关闭误触保护');
-
   // D15 拆迁到账：总分 ×1.5
   const g8 = makeGame();
   g8.tierIdx = 4; g8.score = 100;
   g8.applyChoice(Choices.POOL.find(c => c.id === 'D15'));
   ok(g8.score === 150, 'D15 应 ×1.5，实际 ' + g8.score);
+
+  // D3 贵人相助：2 次失败保护
+  const g9 = makeGame();
+  g9.applyChoice(Choices.POOL.find(c => c.id === 'D3'));
+  ok(g9.mods.failProtect === 2, 'D3 应给 2 次失败保护，实际 ' + g9.mods.failProtect);
+
+  // D8 时间的玫瑰：完美区随连击扩大，上限 +50%
+  const g10 = makeGame();
+  g10.applyChoice(Choices.POOL.find(c => c.id === 'D8'));
+  const baseW = g10.effZones().p; const basePw = baseW[1] - baseW[0];
+  g10.perfectStreak = 20; // 20 连 × 5% = +100%，应被钳到 +50%
+  const grown = g10.effZones().p;
+  ok(Math.abs((grown[1] - grown[0]) - basePw * 1.5) < 1e-9, 'D8 连击扩大应封顶 +50%，实际倍率 ' + ((grown[1] - grown[0]) / basePw));
+
+  // C10 背水一战：完成区关闭（判定 + 渲染标记一致）
+  const g11 = makeGame();
+  g11.applyChoice(Choices.POOL.find(c => c.id === 'C10'));
+  ok(g11.mods.noCompleteZone === true, 'C10 应关闭完成区');
+  g11.level = (g11.effZones().q[0] + g11.effZones().q[1]) / 2; // 水位落在原完成区
+  const sc0 = g11.score;
+  g11.judge();
+  ok(g11.score === sc0, 'C10 时落在原完成区不应得分');
 }
 
 // 4. 阶段专属过滤：0 段抽卡不会出现职场选项
@@ -148,67 +150,16 @@ console.log('4. 阶段专属过滤');
   console.log('   过滤校验完成（200 次抽卡）');
 }
 
-// 5. 段位之力抽屉：抽段位 → 随机效果生效 / 30% 二选一
-console.log('5. 段位之力抽屉');
+// 5. 段位之力效果池：结构校验（段位卡 D21-23 已下架，机制保留）
+console.log('5. 段位之力效果池');
 {
   ok(Array.isArray(Choices.TIER_FX) && Choices.TIER_FX.length === 7, 'TIER_FX 应有 7 个段位池');
-  ok(Choices.TIER_FX.every(p => p.length === 5), '每个段位池应有 5 条效果');
-
-  const d21 = Choices.POOL.find(c => c.id === 'D21');
-  const d22 = Choices.POOL.find(c => c.id === 'D22');
-  const d23 = Choices.POOL.find(c => c.id === 'D23');
-  ok(!!(d21 && d21.tierDraw && d22 && d23), 'D21-D23 应为段位卡（tierDraw）');
-
-  // 直接生效路径（反复抽，覆盖 1 条/2 条两种随机结果）
-  let single = 0, dual = 0;
-  for (let i = 0; i < 120; i++) {
-    const g = makeGame();
-    g.tierIdx = 2; g.score = Cups.TIERS[2].score;
-    g.applyChoice(d21); // tierPick [0,1,2]
-    if (g.phase === 'choice2') {
-      dual++;
-      ok(g.pendingTierFx.length === 2, '二选一应抽出 2 条效果');
-      ok(g.pendingTierFx[0].id !== g.pendingTierFx[1].id, '二选一两条不应重复');
-      step(g, 1.1); // 渲染 choice2Rects + 度过 1 秒误触锁
-      ok(g.choice2Rects && g.choice2Rects.length === 2, '应有 2 个二选一热区');
-      const r0 = g.choice2Rects[0];
-      g.onPress(r0.x + 5, r0.y + 5);
-      ok(g.phase === 'aim' || g.phase === 'press', '选定后应回到倒水相位，实际 ' + g.phase);
-      ok(g.usedChoiceIds[g.choice2Rects[0].opt.id] === true, '选定的段位效果应标记已用');
-    } else {
-      single++;
-      ok(g.phase === 'aim' || g.phase === 'press', '单条生效后应回到倒水相位，实际 ' + g.phase);
-    }
-    step(g, 0.3);
-  }
-  ok(single > 30, '120 次抽屉应有单条直接生效，实际 ' + single);
-  ok(dual > 5, '120 次抽屉应出现二选一（30% 概率），实际 ' + dual);
-
-  // D22 在 3 段抽取：效果必须来自 3/4/5 段池（id 前缀 T3/T4/T5）
-  for (let i = 0; i < 60; i++) {
-    const g = makeGame();
-    g.tierIdx = 3; g.score = Cups.TIERS[3].score;
-    const usedBefore = Object.keys(g.usedChoiceIds).length;
-    g.applyChoice(d22);
-    if (g.phase === 'choice2') {
-      for (const f of g.pendingTierFx) ok(/^T[345]/.test(f.id), 'D22 效果应来自 3/4/5 段池: ' + f.id);
-      step(g, 1.1); // 渲染 + 度过误触锁
-      const r0 = g.choice2Rects[0];
-      g.onPress(r0.x + 5, r0.y + 5);
-    } else {
-      const newIds = Object.keys(g.usedChoiceIds);
-      ok(newIds.length === usedBefore + 2, '单条路径应标记抽屉卡+效果卡');
-      const fxId = newIds.find(id => /^T/.test(id));
-      ok(/^T[345]/.test(fxId || ''), 'D22 单条效果应来自 3/4 段池: ' + fxId);
-    }
-  }
-
-  // D23 在 6 段抽取：4/5/6 段池都有效
-  const g9 = makeGame();
-  g9.tierIdx = 6; g9.score = Cups.TIERS[6].score;
-  g9.applyChoice(d23);
-  ok(g9.phase === 'choice2' || g9.phase === 'aim' || g9.phase === 'press', 'D23 在 6 段应正常生效');
-  step(g9, 0.3);
+  const expect = [5, 5, 5, 4, 5, 5, 5]; // 葡萄之力已删除「前辈提点」
+  Choices.TIER_FX.forEach((p, i) => {
+    ok(p.length === expect[i], '段位' + i + '应有 ' + expect[i] + ' 条效果，实际 ' + p.length);
+    p.forEach(f => ok(!!(f.id && f.name && f.desc && f.fx), '段位' + i + ' 效果应含 id/name/desc/fx'));
+  });
+  ok(!Choices.POOL.some(c => c.tierDraw), '池中不应再有段位卡（tierDraw 已下架）');
 }
 
 // 6. 选择后保杯：非换杯选项不换杯；换杯选项/段位变化才重抽
@@ -228,7 +179,7 @@ console.log('6. 选择后保杯');
   const g3 = makeGame();
   g3.score = 10;
   const cup3 = g3.cup.name;
-  g3.applyChoice(Choices.POOL.find(c => c.id === 'D2')); // 彩票 +20（钳制不跨段）
+  g3.applyChoice(Choices.POOL.find(c => c.id === 'D2')); // 彩票 +40（钳制不跨段）
   ok(g3.tierIdx === 0, 'D2 后段位应保持 0 段，实际 ' + g3.tierIdx);
   ok(g3.cup.name === cup3, '段位未变应保留当前杯');
 
