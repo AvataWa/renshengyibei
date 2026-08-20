@@ -1592,8 +1592,75 @@
     }
   };
 
+  // 三选一用竖排三行卡（整行宽，从左到右：分类 chip → 名称/效果/感悟）
+  Game.prototype.drawChoiceRows = function (cards, rects, y0, rowH, gap, px, pw) {
+    var ctx = this.ctx, W = this.W, H = this.H;
+    var cx = px + W * 0.032, cw = pw - W * 0.064;
+    // 单行自适应缩字号（minPx 仍超宽则交给调用方换行）
+    function fitFont(text, maxW, basePx, minPx, bold) {
+      var px2 = basePx;
+      while (px2 > minPx) {
+        ctx.font = (bold ? 'bold ' : '') + Math.round(px2) + 'px sans-serif';
+        if (ctx.measureText(text).width <= maxW) return px2;
+        px2 -= 1;
+      }
+      ctx.font = (bold ? 'bold ' : '') + Math.round(minPx) + 'px sans-serif';
+      return minPx;
+    }
+    for (var i = 0; i < cards.length; i++) {
+      var c = cards[i], cy = y0 + i * (rowH + gap);
+      rects.push({ x: cx, y: cy, w: cw, h: rowH, opt: c });
+      var meta = Choices.CATS[c.cat] || Choices.CATS.A;
+      var rare = c.cat === 'D';
+      ctx.save();
+      ctx.fillStyle = '#FFFFFF';
+      this.roundRect(cx, cy, cw, rowH, 14);
+      ctx.fill();
+      ctx.strokeStyle = rare ? '#E8A33D' : PAL.TRACK;
+      ctx.lineWidth = rare ? 4 : 2;
+      ctx.stroke();
+      // 左侧分类 chip（垂直居中）
+      ctx.textAlign = 'center';
+      ctx.font = 'bold ' + Math.round(H * 0.0145) + 'px sans-serif';
+      var chipTxt = (rare ? '◆ ' : '') + meta.label;
+      var chipTw = ctx.measureText(chipTxt).width;
+      var chipH = H * 0.03, chipW = chipTw + 22;
+      var chipX = cx + W * 0.02, chipY = cy + rowH / 2 - chipH / 2;
+      ctx.fillStyle = meta.bg;
+      this.roundRect(chipX, chipY, chipW, chipH, chipH / 2);
+      ctx.fill();
+      ctx.fillStyle = meta.color;
+      ctx.fillText(chipTxt, chipX + chipW / 2, chipY + chipH * 0.72);
+      // 右侧文字区：名称（1 行）/ 效果（1~2 行）/ 感悟（1 行）
+      var tx = chipX + chipW + W * 0.026;
+      var tw = cx + cw - tx - W * 0.018;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = PAL.INK;
+      var nameTxt = c.name + (c.tierDraw ? ' ◆' : '');
+      fitFont(nameTxt, tw, H * 0.021, H * 0.016, true);
+      ctx.fillText(nameTxt, tx, cy + rowH * 0.30);
+      var dTxt = c.tierDraw ? '抽出后随机选定段位生效' : c.desc;
+      ctx.fillStyle = '#3A3833';
+      var dPx = fitFont(dTxt, tw, H * 0.015, H * 0.0105, false);
+      var oneLine = ctx.measureText(dTxt).width <= tw;
+      if (oneLine) {
+        ctx.fillText(dTxt, tx, cy + rowH * 0.60);
+        ctx.fillStyle = PAL.MUTED;
+        fitFont(c.flavor || '', tw, H * 0.0125, H * 0.01, false);
+        ctx.fillText(c.flavor || '', tx, cy + rowH * 0.85);
+      } else {
+        ctx.font = Math.round(H * 0.0125) + 'px sans-serif';
+        var dLines = this.wrapLines(dTxt, tw).slice(0, 2);
+        for (var dl = 0; dl < dLines.length; dl++) {
+          ctx.fillText(dLines[dl], tx, cy + rowH * (0.56 + dl * 0.21));
+        }
+      }
+      ctx.restore();
+    }
+  };
+
   // ---------------- 人生选择 · 三选一抽卡界面（升段/升阶触发，不可跳过） ----------------
-  // 横排三竖卡，面板位于屏幕上半部不遮杯子；弹出 1 秒内不响应点击（防误触）
+  // 竖排三行卡，面板位于屏幕上半部不遮杯子；弹出 1 秒内不响应点击（防误触）
   Game.prototype.drawChoice = function () {
     var ctx = this.ctx, W = this.W, H = this.H;
     var cards = this.pendingChoice || [];
@@ -1616,12 +1683,11 @@
     ctx.fillStyle = PAL.MUTED;
     ctx.fillText(Cups.rankFor(this.score).label + ' · 选择一种际遇', W / 2, py + H * 0.098);
 
-    // 三张竖卡横排
-    var side = W * 0.05, gap = W * 0.024;
-    var cw = (pw - side * 2 - gap * 2) / 3;
-    var ch = H * 0.38, y0 = py + H * 0.135;
+    // 三行整宽卡片
+    var y0 = py + H * 0.125, gap = H * 0.012;
+    var rowH = (ph - H * 0.125 - H * 0.05 - gap * 2) / 3;
     this.choiceRects = [];
-    this.drawChoiceCards(cards, this.choiceRects, cw, ch, y0, px, side, gap, locked);
+    this.drawChoiceRows(cards, this.choiceRects, y0, rowH, gap, px, pw);
 
     ctx.font = Math.round(H * 0.014) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
