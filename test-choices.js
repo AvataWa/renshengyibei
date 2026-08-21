@@ -318,10 +318,29 @@ console.log('8. v2 新机制专项');
 
   // 中断保护：按压中切后台 → 撤销按压回到待倒，不判定失败
   const g13 = makeGame();
+  g13.pendingChoice = null; g13.choiceIsOpening = false; g13.phase = 'aim'; // 跳过开局天赋抽卡
   g13.onPress(100, 100); // 开始倒水
   ok(g13.phase === 'press' && g13.pressing, '按压后应在倒水中');
   g13.onInterrupt();
   ok(g13.phase === 'aim' && !g13.pressing && !g13.usedPress, '中断后应回到待倒状态，实际 ' + g13.phase);
+}
+
+// 9. 开局天赋三选一（出生前的选择）
+console.log('9. 开局天赋');
+{
+  const g = makeGame();
+  ok(g.phase === 'choice', '开局应进入三选一相位，实际 ' + g.phase);
+  ok(g.choiceIsOpening === true, '应标记为开局天赋');
+  ok(g.pendingChoice && g.pendingChoice.length === 3, '开局应有 3 张卡');
+  ok(g.pendingChoice.every(c => c.tiers == null), '开局选项应全部来自通用池');
+  ok(g.round === 1, '开局抽卡时应已是第 1 杯，实际 ' + g.round);
+  step(g, 0.1); // 渲染出卡片热区
+  step(g, 1.1); // 过 1 秒误触锁
+  g.onPress(g.choiceRects[0].x + 5, g.choiceRects[0].y + 5);
+  ok(g.pendingChoice === null && g.phase === 'aim', '选完应回到倒水相位，实际 ' + g.phase);
+  ok(g.round === 1, '开局天赋选完不应跳杯，实际第 ' + g.round + ' 杯');
+  ok(g.choiceIsOpening === false, '选完应清除开局标记');
+  ok(g.chosenList.length === 1, '开局选择应记入已做选择');
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);

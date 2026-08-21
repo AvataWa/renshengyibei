@@ -140,6 +140,8 @@
     this.choiceListOpen = false; // 「已做选择」面板开关
     this.listScroll = 0;      // 面板滚动偏移
     this._listDrag = null;    // 面板拖动状态
+    this.choiceIsOpening = false; // 开局天赋三选一（出生前的选择）标记
+    this._noIncRound = false; // 开局天赋选完不跳杯标记
     // ── v2 新机制状态 ──
     this.curses = [];         // 先苦后甜：{left, pen, reward, name}
     this.roundStartT = 0;     // 本杯开始时刻（区域脉冲/衰减用）
@@ -210,11 +212,13 @@
     return Cups.randomCupTier(poolTier, count);
   };
 
-  // 三选一抽卡：A/B/C 各一张（洗牌），每格 8% 概率替换为稀有 D
-  Game.prototype.rollChoices = function () {
+  // 三选一抽卡：A/B/C/U 各一张（洗牌取三），每格 8% 概率替换为稀有 D
+  // genericOnly=true 时只抽全阶段通用选项（开局「人生起点」用）
+  Game.prototype.rollChoices = function (genericOnly) {
     var self = this;
     var eligible = Choices.POOL.filter(function (c) {
       if (self.usedChoiceIds[c.id]) return false;
+      if (genericOnly && c.tiers != null) return false;
       return c.tiers == null || c.tiers.indexOf(self.tierIdx) >= 0;
     });
     var cats = ['A', 'B', 'C', 'U']; // 先苦后甜（咒）与 A/B/C 一起洗牌，三格取其三
@@ -348,6 +352,7 @@
     this.toast('「' + opt.name + '」已生效');
     this.pendingChoice = null;
     this.pendingTierFx = null;
+    if (this.choiceIsOpening) { this.choiceIsOpening = false; this._noIncRound = true; } // 开局天赋：仍是第 1 杯
     this.newRound();
   };
 
@@ -663,10 +668,20 @@
     this.nextCupPre = null;
     if (this.best > 0 && this.env.uploadScore) this.env.uploadScore(this.best); // 兜底上报历史最高（幂等）
     this.newRound();
+    // 开局天赋三选一（出生前的选择）：只从通用选项抽；选完不跳杯，仍是第 1 杯
+    this.choiceIsOpening = true;
+    this.pendingChoice = this.rollChoices(true);
+    if (this.pendingChoice) {
+      this.phase = 'choice';
+      this.choiceOpenT = this.time; // 1 秒误触保护
+    } else {
+      this.choiceIsOpening = false; // 通用池枯竭的极端兜底：直接开局
+    }
   };
 
   Game.prototype.newRound = function () {
-    this.round++;
+    if (this._noIncRound) this._noIncRound = false; // 开局天赋选完不跳杯
+    else this.round++;
     var tier = Cups.TIERS[this.tierIdx];
     this.tier = tier; // 当前段位（倒水速度等按段位配置取值）
     // 杯型选择：人生选择后的保杯（选项未涉及杯型且段位未变时沿用当前杯），
@@ -887,6 +902,7 @@
     // 人生选择：升段/升阶后触发三选一（选完再进入下一杯）
     if (didTierUp || didStageUp) {
       this.pendingChoice = this.rollChoices();
+      this.choiceIsOpening = false; // 晋升抽卡覆盖开局天赋（实际对局不会同时发生，防御测试直调）
     }
     // 示意图：+N 绿色/橙色大字居中于杯上方，连击/评价黑色小字紧随其下
     var ptsY = this.cupTop - this.H * 0.10;
@@ -1506,7 +1522,7 @@
       ctx.stroke();
     }
 
-    // 杯把（右侧耳形把手；对象形式可自定义附着位置 t1/t2 与外扩幅度 out）
+    // 杯把（右侧方 D 形马克杯柄：外侧直边+圆角；对象形式可自定义附着位置 t1/t2 与外扩幅度 out）
     if (handleOn && !useSpr) {
       var hcfg = typeof deco.handle === 'object' && deco.handle ? deco.handle : {};
       var ht1 = hcfg.t1 != null ? hcfg.t1 : 0.82;   // 上附着点（杯高比例）
@@ -1514,13 +1530,42 @@
       var hOut = this.halfW * (hcfg.out != null ? hcfg.out : 0.62); // 外扩幅度
       var hw1 = this.halfW * cup.profile(ht1), hw2 = this.halfW * cup.profile(ht2);
       var hy1 = this.baseY - ht1 * this.cupH, hy2 = this.baseY - ht2 * this.cupH;
+      var hTh = Math.max(wallW * 2.2, (hy2 - hy1) * 0.30);          // 柄厚
+      var xA1 = this.cx + hw1 - 2, xA2 = this.cx + hw2 - 2;         // 上下附着点
+      var xL = this.cx + Math.max(hw1, hw2) - 2;                    // 内孔左缘（贴杯壁）
+      var xOut = this.cx + Math.max(hw1, hw2) + hOut;               // 外侧直边
+      var rO = Math.min(hTh * 0.55, (xOut - xL) * 0.45);            // 外圆角
+      var iy1 = hy1 + hTh, iy2 = hy2 - hTh, ixO = xOut - hTh;       // 内孔（外轮廓内缩柄厚）
+      var rI = Math.max(2, rO - hTh * 0.4);                         // 内孔圆角
       ctx.beginPath();
-      ctx.moveTo(this.cx + hw1 - 2, hy1);
-      ctx.bezierCurveTo(this.cx + hw1 + hOut, hy1, this.cx + hw2 + hOut, hy2, this.cx + hw2 - 2, hy2);
-      ctx.bezierCurveTo(this.cx + hw2 + hOut * 0.45, hy2 + 8, this.cx + hw1 + hOut * 0.45, hy1 - 8, this.cx + hw1 - 2, hy1);
+      // 外轮廓：上横边 → 右直边 → 下横边（右两角圆角），左缘斜回上附着点
+      ctx.moveTo(xA1, hy1);
+      ctx.lineTo(xOut - rO, hy1);
+      ctx.quadraticCurveTo(xOut, hy1, xOut, hy1 + rO);
+      ctx.lineTo(xOut, hy2 - rO);
+      ctx.quadraticCurveTo(xOut, hy2, xOut - rO, hy2);
+      ctx.lineTo(xA2, hy2);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      // 内孔：反向环绕（nonzero 填充规则下自动镂空，兼容微信 2d canvas）
+      ctx.moveTo(xL, iy1);
+      ctx.lineTo(xL, iy2);
+      ctx.lineTo(ixO - rI, iy2);
+      ctx.quadraticCurveTo(ixO, iy2, ixO, iy2 - rI);
+      ctx.lineTo(ixO, iy1 + rI);
+      ctx.quadraticCurveTo(ixO, iy1, ixO - rI, iy1);
+      ctx.closePath();
+      // 填充随饮品色（玻璃透出的饮品质感，柄内视作始终满杯，不随液面变化）
+      var hdk = this.drink;
+      var hgrad = ctx.createLinearGradient(0, hy1, 0, hy2);
+      hgrad.addColorStop(0, hdk.color);
+      var hdeep = hdk.deep || hdk.color;
+      if (hdk.gradSoft) hdeep = mixHex(hdeep, '#FFFFFF', hdk.gradSoft);
+      hgrad.addColorStop(1, hdeep);
+      ctx.save();
+      ctx.globalAlpha = hdk.alpha != null ? hdk.alpha : 0.92;
+      ctx.fillStyle = hgrad;
       ctx.fill();
+      ctx.restore();
       ctx.strokeStyle = wallC;
       ctx.lineWidth = Math.max(3, wallW - 1);
       ctx.stroke();
@@ -1880,7 +1925,11 @@
     ctx.fillStyle = PAL.INK;
     ctx.font = 'bold ' + Math.round(this.H * 0.030) + 'px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('按住屏幕倒水', this.W / 2, this.H * 0.925);
+    ctx.fillText('按住屏幕倒水', this.W / 2, this.H * 0.905);
+    // 副提示：目标区说明（ smaller、灰色）
+    ctx.fillStyle = PAL.MUTED;
+    ctx.font = Math.round(this.H * 0.018) + 'px sans-serif';
+    ctx.fillText('倒水至黄色区域完成，绿色区域完美', this.W / 2, this.H * 0.94);
     ctx.globalAlpha = 1;
   };
 
@@ -2074,10 +2123,10 @@
     ctx.textAlign = 'center';
     ctx.fillStyle = PAL.INK;
     ctx.font = 'bold ' + Math.round(H * 0.038) + 'px sans-serif';
-    ctx.fillText('人生路口', W / 2, py + H * 0.058);
+    ctx.fillText(this.choiceIsOpening ? '人生起点' : '人生路口', W / 2, py + H * 0.058);
     ctx.font = Math.round(H * 0.017) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
-    ctx.fillText(Cups.rankFor(this.score).label + ' · 选择一种际遇', W / 2, py + H * 0.098);
+    ctx.fillText(this.choiceIsOpening ? '出生之前 · 选择一种天赋' : (Cups.rankFor(this.score).label + ' · 选择一种际遇'), W / 2, py + H * 0.098);
 
     // 三行整宽卡片
     var y0 = py + H * 0.125, gap = H * 0.012;

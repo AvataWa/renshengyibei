@@ -185,18 +185,36 @@ def render_cup(size, cup, handle_cfg):
     bw0 = halfW * prof(0)
     d.line([cx - bw0, baseY, cx + bw0, baseY], fill=INK, width=wall_w * 2)
 
-    # 把手(贝塞尔耳形, 参数来自参考图把手几何)
+    # 把手(方 D 形马克杯柄: 外侧直边+圆角, 填充随饮品色)
     if handle_cfg:
         ht1, ht2 = handle_cfg["t1"], handle_cfg["t2"]
         hOut = halfW * handle_cfg["out"]
         hw1, hw2 = halfW * prof(ht1), halfW * prof(ht2)
         hy1, hy2 = baseY - ht1 * cupH, baseY - ht2 * cupH
-        pts = bez((cx + hw1 - 2, hy1), (cx + hw1 + hOut, hy1),
-                  (cx + hw2 + hOut, hy2), (cx + hw2 - 2, hy2))
-        pts += bez((cx + hw2 - 2, hy2), (cx + hw2 + hOut * 0.45, hy2 + 8 * S),
-                   (cx + hw1 + hOut * 0.45, hy1 - 8 * S), (cx + hw1 - 2, hy1))
-        d.polygon(pts, fill=(255, 255, 255, 128), outline=INK)
-        d.line(pts + [pts[0]], fill=INK, width=max(3, wall_w - S), joint="curve")
+        hTh = max(4.5 * S * 2.2, (hy2 - hy1) * 0.30)          # 柄厚
+        xL = cx + max(hw1, hw2) - 2 * S                       # 内孔左缘(贴杯壁)
+        xOut = cx + max(hw1, hw2) + hOut                      # 外侧直边
+        rO = min(hTh * 0.55, (xOut - xL) * 0.45)              # 外圆角
+        iy1, iy2, ixO = hy1 + hTh, hy2 - hTh, xOut - hTh      # 内孔(内缩柄厚)
+        rI = max(2 * S, rO - hTh * 0.4)                       # 内孔圆角
+        hmask = Image.new("L", img.size, 0)
+        hm = ImageDraw.Draw(hmask)
+        hm.rounded_rectangle([xL, hy1, xOut, hy2], radius=rO,
+                             corners=(False, True, True, False), fill=255)
+        hm.rounded_rectangle([xL, iy1, ixO, iy2], radius=rI,
+                             corners=(False, True, True, False), fill=0)
+        hga = np.zeros((img.size[1], img.size[0], 4), dtype=np.uint8)
+        hf = np.clip((ys - hy1) / max(1, hy2 - hy1), 0, 1)[:, None]
+        hrgb = (np.array(c_top) * (1 - hf) + np.array(c_bot) * hf).astype(np.uint8)
+        hga[:, :, 0] = hrgb[:, 0:1]; hga[:, :, 1] = hrgb[:, 1:2]; hga[:, :, 2] = hrgb[:, 2:3]
+        hga[:, :, 3] = int(DRINK["alpha"] * 255)
+        img.paste(Image.fromarray(hga, "RGBA"), (0, 0), hmask)
+        d = ImageDraw.Draw(img)
+        hw_w = max(3, wall_w - S)
+        d.rounded_rectangle([xL, hy1, xOut, hy2], radius=rO,
+                            corners=(False, True, True, False), outline=INK, width=hw_w)
+        d.rounded_rectangle([xL, iy1, ixO, iy2], radius=rI,
+                            corners=(False, True, True, False), outline=INK, width=hw_w)
 
     # 合格区虚线
     for qv in (q0, q[1]):

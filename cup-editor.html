@@ -277,25 +277,46 @@
       ctx.lineTo(L.cx + g.halfW * 0.45 * L.scale, footY); ctx.stroke();
     }
 
-    // 杯把（参数化：上/下附着点 + 外扩幅度，可拖拽节点调整）
+    // 杯把（方 D 形马克杯柄：外侧直边+圆角；参数化：上/下附着点 + 外扩幅度，可拖拽节点调整）
     handleNodes = [];
     if (cur.deco.handle.on) {
       var hh = cur.deco.handle;
       var hw1 = profileAt(hh.t1) * g.halfW * L.scale, hw2 = profileAt(hh.t2) * g.halfW * L.scale;
       var hy1 = L.baseY - hh.t1 * g.cupH * L.scale, hy2 = L.baseY - hh.t2 * g.cupH * L.scale;
       var hOut = g.halfW * hh.out * L.scale;
+      var hTh = Math.max(cur.deco.wallW * L.scale * 1.6 * 2.2, (hy2 - hy1) * 0.30); // 柄厚
+      var xA1 = L.cx + hw1 - 2, xA2 = L.cx + hw2 - 2;                   // 上下附着点
+      var xL = L.cx + Math.max(hw1, hw2) - 2;                           // 内孔左缘（贴杯壁）
+      var xOut = L.cx + Math.max(hw1, hw2) + hOut;                      // 外侧直边
+      var rO = Math.min(hTh * 0.55, (xOut - xL) * 0.45);                // 外圆角
+      var iy1 = hy1 + hTh, iy2 = hy2 - hTh, ixO = xOut - hTh;           // 内孔（内缩柄厚）
+      var rI = Math.max(2, rO - hTh * 0.4);                             // 内孔圆角
       ctx.beginPath();
-      ctx.moveTo(L.cx + hw1 - 2, hy1);
-      ctx.bezierCurveTo(L.cx + hw1 + hOut, hy1, L.cx + hw2 + hOut, hy2, L.cx + hw2 - 2, hy2);
-      ctx.bezierCurveTo(L.cx + hw2 + hOut * 0.45, hy2 + 8, L.cx + hw1 + hOut * 0.45, hy1 - 8, L.cx + hw1 - 2, hy1);
+      ctx.moveTo(xA1, hy1);
+      ctx.lineTo(xOut - rO, hy1);
+      ctx.quadraticCurveTo(xOut, hy1, xOut, hy1 + rO);
+      ctx.lineTo(xOut, hy2 - rO);
+      ctx.quadraticCurveTo(xOut, hy2, xOut - rO, hy2);
+      ctx.lineTo(xA2, hy2);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+      // 内孔反向环绕，nonzero 填充规则下自动镂空
+      ctx.moveTo(xL, iy1);
+      ctx.lineTo(xL, iy2);
+      ctx.lineTo(ixO - rI, iy2);
+      ctx.quadraticCurveTo(ixO, iy2, ixO, iy2 - rI);
+      ctx.lineTo(ixO, iy1 + rI);
+      ctx.quadraticCurveTo(ixO, iy1, ixO - rI, iy1);
+      ctx.closePath();
+      // 填充随饮品色（编辑器预览固定用麦芽色，游戏内按当前饮品渐变）
+      var hgrad = ctx.createLinearGradient(0, hy1, 0, hy2);
+      hgrad.addColorStop(0, '#F2B33D'); hgrad.addColorStop(1, '#D98E1B');
+      ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = hgrad; ctx.fill(); ctx.restore();
       ctx.strokeStyle = cur.deco.wall; ctx.lineWidth = Math.max(2, cur.deco.wallW * L.scale * 1.6 - 1); ctx.stroke();
       // 杯把控制节点：上附着点(上下拖) / 下附着点(上下拖) / 外扩点(左右拖)
       handleNodes = [
         { role: 't1', x: L.cx + hw1, y: hy1 },
         { role: 't2', x: L.cx + hw2, y: hy2 },
-        { role: 'out', x: L.cx + Math.max(hw1, hw2) + hOut, y: (hy1 + hy2) / 2 }
+        { role: 'out', x: xOut, y: (hy1 + hy2) / 2 }
       ];
     }
 
