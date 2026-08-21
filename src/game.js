@@ -1250,10 +1250,10 @@
     if (this.state === 'play' && this.choiceListOpen) this.drawChoicesList();
   };
 
-  // 右下角「已做选择」按钮热区
+  // 右侧「已做选择」按钮热区（桌面上沿，避开底部操作提示）
   Game.prototype.choicesBtnRect = function () {
     var w = this.W * 0.26, h = this.H * 0.05;
-    return { x: this.W * 0.97 - w, y: this.H * 0.90, w: w, h: h };
+    return { x: this.W * 0.97 - w, y: this.H * 0.795, w: w, h: h };
   };
 
   Game.prototype.drawBackground = function () {
@@ -1926,10 +1926,21 @@
     ctx.font = 'bold ' + Math.round(this.H * 0.030) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('按住屏幕倒水', this.W / 2, this.H * 0.905);
-    // 副提示：目标区说明（ smaller、灰色）
-    ctx.fillStyle = PAL.MUTED;
+    // 副提示：目标区说明（黄/绿关键词带颜色，对应杯上色带）
     ctx.font = Math.round(this.H * 0.018) + 'px sans-serif';
-    ctx.fillText('倒水至黄色区域完成，绿色区域完美', this.W / 2, this.H * 0.94);
+    var segs = [
+      ['倒水至', PAL.MUTED], ['黄色', '#D9A62E'], ['区域完成，', PAL.MUTED],
+      ['绿色', '#2EA85C'], ['区域完美', PAL.MUTED]
+    ];
+    var totW = 0, si;
+    for (si = 0; si < segs.length; si++) totW += ctx.measureText(segs[si][0]).width;
+    var sx = (this.W - totW) / 2;
+    ctx.textAlign = 'left';
+    for (si = 0; si < segs.length; si++) {
+      ctx.fillStyle = segs[si][1];
+      ctx.fillText(segs[si][0], sx, this.H * 0.94);
+      sx += ctx.measureText(segs[si][0]).width;
+    }
     ctx.globalAlpha = 1;
   };
 
