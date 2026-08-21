@@ -147,6 +147,14 @@
             canvas.addEventListener('mousemove', function (e) { if (e.buttons) pos(e); });
             canvas.addEventListener('touchmove', function (e) { e.preventDefault(); pos(e); }, { passive: false });
           },
+      // 中断保护：切后台/窗口失焦/触摸被取消时撤销进行中的按压（防止切回来后自动倒水）
+      onInterrupt: isWx
+        ? function (cb) { wx.onHide(function () { cb(); }); }
+        : function (cb) {
+            document.addEventListener('visibilitychange', function () { if (document.hidden) cb(); });
+            window.addEventListener('blur', function () { cb(); });
+            canvas.addEventListener('touchcancel', function () { cb(); });
+          },
       getStorage: isWx
         ? function (k) { try { return wx.getStorageSync('wg_' + k) || ''; } catch (e) { return ''; } }
         : function (k) { try { return localStorage.getItem('wg_' + k) || ''; } catch (e) { return ''; } },

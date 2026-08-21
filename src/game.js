@@ -168,7 +168,7 @@
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
   Game.prototype.effZones = function () {
-    var m = this.mods, z = this.cup.zones;
+    var m = this.mods, z = this.zoneBase || this.cup.zones; // 目标区：每杯随机生成（zoneBase），兜底用杯型自带
     var qc = (z.q[0] + z.q[1]) / 2;
     var qw = (z.q[1] - z.q[0]) * m.completeScale;
     var basePw = z.p[1] - z.p[0];
@@ -458,6 +458,17 @@
     this.env.onTouchStart(function (x, y) { self.onPress(x, y); });
     this.env.onTouchEnd(function () { self.onRelease(); });
     if (this.env.onTouchMove) this.env.onTouchMove(function (x, y) { self.onMove(x, y); });
+    if (this.env.onInterrupt) this.env.onInterrupt(function () { self.onInterrupt(); });
+  };
+
+  // 切后台/来电/触摸被取消：撤销进行中的按压，避免回来时仍在倒水导致误判失败
+  Game.prototype.onInterrupt = function () {
+    if (this.state !== 'play' || this.phase !== 'press') return;
+    this.pressing = false;
+    if (this.reverseCups > 0) this.angle = 0; // 反转自倒模式：同时收角度暂停出水
+    this.usedPress = false;
+    this.phase = 'aim';
+    this.toast('已暂停，再按继续');
   };
 
   // 拖动（「已做选择」面板列表滚动）
@@ -695,6 +706,12 @@
     this.graceArmed = this.graceTier >= 0 && this.graceTier === this.tierIdx; // 跳槽窗口期
     // 错位竞争：目标区每杯随机平移
     this.zoneShiftRound = this.mods.zoneRandom ? (Math.random() - 0.5) * 0.12 : 0;
+    // 目标区随机生成：合格区落在杯高 20%~100% 内的随机位置，宽度 0.24~0.36 随机；
+    // 完美区贴合格区顶部、宽为其 1/3（与杯库统一难度规则一致）
+    var rqw = 0.24 + Math.random() * 0.12;
+    var rqLo = 0.20 + Math.random() * Math.max(0.01, 0.985 - rqw - 0.20);
+    var rpW = rqw / 3;
+    this.zoneBase = { q: [rqLo, rqLo + rqw], p: [rqLo + rqw - rpW, rqLo + rqw] };
     // 饮品绑定段位（容器/颜色/名称随段位切换）
     this.drink = { name: tier.drinkName, color: tier.color, deep: tier.deep,
       alpha: tier.alpha != null ? tier.alpha : 0.92, bubbles: !!tier.bubbles, foam: !!tier.foam,

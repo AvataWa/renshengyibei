@@ -266,7 +266,8 @@ console.log('8. v2 新机制专项');
   g6.applyChoice(Choices.POOL.find(c => c.id === 'D23'));
   g6.mods.perfectScale = 0.5;
   const z6 = g6.effZones();
-  const base6 = g6.cup.zones.p[1] - g6.cup.zones.p[0];
+  const base6z = g6.zoneBase || g6.cup.zones;
+  const base6 = base6z.p[1] - base6z.p[0];
   ok(Math.abs((z6.p[1] - z6.p[0]) - base6) < 1e-9, 'D23 完美区应锁定基础宽度，实际倍率 ' + ((z6.p[1] - z6.p[0]) / base6));
 
   // D22 股权池：结算 ×3 兑现
@@ -302,6 +303,25 @@ console.log('8. v2 新机制专项');
   const g11 = makeGame();
   g11.applyChoice(Choices.POOL.find(c => c.id === 'A22'));
   ok(g11.resumeLeft === 1 && g11.mods.resume === true, 'A22 本杯应有 1 次续倒');
+
+  // 目标区随机生成：落在 20%~100% 内，且杯与杯之间有随机变化
+  const g12 = makeGame();
+  const zA = g12.zoneBase.q[0];
+  let differ = false;
+  for (let i = 0; i < 10; i++) {
+    g12.newRound();
+    const zb = g12.zoneBase;
+    ok(zb.q[0] >= 0.199 && zb.q[1] <= 0.986, '随机目标区应落在 20%~100% 内，实际 [' + zb.q[0] + ',' + zb.q[1] + ']');
+    if (Math.abs(zb.q[0] - zA) > 1e-6) differ = true;
+  }
+  ok(differ, '连续 10 杯的目标区应有随机变化');
+
+  // 中断保护：按压中切后台 → 撤销按压回到待倒，不判定失败
+  const g13 = makeGame();
+  g13.onPress(100, 100); // 开始倒水
+  ok(g13.phase === 'press' && g13.pressing, '按压后应在倒水中');
+  g13.onInterrupt();
+  ok(g13.phase === 'aim' && !g13.pressing && !g13.usedPress, '中断后应回到待倒状态，实际 ' + g13.phase);
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);
