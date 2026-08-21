@@ -2032,7 +2032,8 @@
       ctx.fillText(nameTxt, tx, cy + rowH * 0.30);
       var dTxt = c.tierDraw ? '抽出后随机选定段位生效' : c.desc;
       ctx.fillStyle = '#3A3833';
-      var dPx = fitFont(dTxt, tw, H * 0.015, H * 0.0105, false);
+      // 效果文案：固定字号不缩放，超宽时折成 2 行（2 行时感悟小字让位）
+      ctx.font = Math.round(H * 0.015) + 'px sans-serif';
       var oneLine = ctx.measureText(dTxt).width <= tw;
       if (oneLine) {
         ctx.fillText(dTxt, tx, cy + rowH * 0.60);
@@ -2040,10 +2041,14 @@
         fitFont(c.flavor || '', tw, H * 0.0125, H * 0.01, false);
         ctx.fillText(c.flavor || '', tx, cy + rowH * 0.85);
       } else {
-        ctx.font = Math.round(H * 0.0125) + 'px sans-serif';
-        var dLines = this.wrapLines(dTxt, tw).slice(0, 2);
+        var dLines = this.wrapLines(dTxt, tw);
+        if (dLines.length > 2) { // 兜底：第二行末尾省略
+          var tail = dLines[1];
+          while (tail.length && ctx.measureText(tail + '…').width > tw) tail = tail.slice(0, -1);
+          dLines = [dLines[0], tail + '…'];
+        }
         for (var dl = 0; dl < dLines.length; dl++) {
-          ctx.fillText(dLines[dl], tx, cy + rowH * (0.56 + dl * 0.21));
+          ctx.fillText(dLines[dl], tx, cy + rowH * (0.56 + dl * 0.24));
         }
       }
       ctx.restore();
