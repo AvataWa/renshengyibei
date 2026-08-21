@@ -2386,7 +2386,7 @@
     ctx.fillRect(0, 0, W, H);
 
     // 黑色主卡
-    var px = W * 0.08, py = H * 0.20, pw = W * 0.84, ph = H * 0.37;
+    var px = W * 0.08, py = H * 0.20, pw = W * 0.84, ph = H * 0.40;
     ctx.fillStyle = PAL.INK;
     this.roundRect(px, py, pw, ph, 26);
     ctx.fill();
@@ -2426,10 +2426,18 @@
     ctx.fillStyle = PAL.INK;
     ctx.fillText(capsuleTxt, W / 2, cy0 + ch * 0.68);
 
-    // 段位小哲理（替代原「距下一段位还差 X 分」进度行）
+    // 段位小哲理（替代原「距下一段位还差 X 分」进度行）：卡宽内折行，最多 2 行
     ctx.font = Math.round(H * 0.017) + 'px sans-serif';
     ctx.fillStyle = PAL.CARD_DIM;
-    ctx.fillText(oTier.wisdom || '', W / 2, py + H * 0.345);
+    var wLines = this.wrapLines(oTier.wisdom || '', pw * 0.86);
+    if (wLines.length > 2) { // 兜底：超出 2 行时第二行末尾省略
+      var tail = wLines[1];
+      while (tail.length && ctx.measureText(tail + '…').width > pw * 0.86) tail = tail.slice(0, -1);
+      wLines = [wLines[0], tail + '…'];
+    }
+    for (var wi = 0; wi < wLines.length; wi++) {
+      ctx.fillText(wLines[wi], W / 2, py + H * (0.335 + wi * 0.026));
+    }
 
     for (var i = 0; i < this.overButtons.length; i++) {
       var b = this.overButtons[i];
