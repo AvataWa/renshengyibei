@@ -164,6 +164,7 @@
     this.resumeLeft = 0;      // 学饮过渡：本杯剩余续倒次数
     this.preCup = null;       // 悔棋快照 {score, streak}
     this.lastChanceRects = null; // 悔棋面板按钮热区
+    this.rankPulseT = 0;      // 阶段提升动画剩余时长（0.6s 放大回弹）
   };
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
@@ -862,6 +863,7 @@
         newTier = newRank.tierIdx;
       }
     }
+    if (didTierUp || didStageUp) this.rankPulseT = 0.6; // 阶段标签放大回弹
     if (didTierUp) {
       this.tierIdx = newTier;
       // 复利账户：升段时取出全部本息
@@ -1007,6 +1009,7 @@
   Game.prototype.update = function (dt) {
     this.time += dt;
     if (this.roundFade < 1) this.roundFade = Math.min(1, this.roundFade + dt / 0.22); // 新杯淡入
+    if (this.rankPulseT > 0) this.rankPulseT -= dt; // 阶段提升放大回弹
 
     // 提示与浮字
     var i;
@@ -1774,11 +1777,11 @@
     ctx.fillText(String(this.score), this.W / 2, dy + this.H * 0.075);
     ctx.font = 'bold ' + Math.round(this.H * 0.032) + 'px sans-serif';
     ctx.fillText('第 ' + this.round + ' 杯', this.W / 2, dy + this.H * 0.125);
-    // 记账习惯：预告下一杯杯型
+    // 记账习惯：预告下一杯杯型（下移到阶段行之下，避免重叠）
     if (this.mods.cupPreview && this.nextCupPre) {
       ctx.font = Math.round(this.H * 0.014) + 'px sans-serif';
       ctx.fillStyle = PAL.MUTED;
-      ctx.fillText('下一杯 · ' + this.nextCupPre.name, this.W / 2, dy + this.H * 0.152);
+      ctx.fillText('下一杯 · ' + this.nextCupPre.name, this.W / 2, dy + this.H * 0.208);
     }
     // 资金池/诅咒状态条（仅在有相关选择时显示）
     var chips = [];
@@ -1791,22 +1794,82 @@
       ctx.font = Math.round(this.H * 0.015) + 'px sans-serif';
       ctx.fillStyle = PAL.MUTED;
       ctx.textAlign = 'center';
-      ctx.fillText(chips.join(' · '), this.W / 2, dy + this.H * 0.208);
+      ctx.fillText(chips.join(' · '), this.W / 2, dy + this.H * 0.232);
     }
   };
 
   Game.prototype.drawDrinkTag = function () {
-    var ctx = this.ctx;
-    var text = Cups.rankFor(this.score).label; // 当前段位（替代原 饮品·杯型提示）
-    ctx.font = 'bold ' + Math.round(this.H * 0.019) + 'px sans-serif';
-    var tw = ctx.measureText(text).width + 32;
-    var th = this.H * 0.042, x = (this.W - tw) / 2, y = this.hudShift() + this.H * 0.155;
-    ctx.fillStyle = PAL.CARD;
-    this.roundRect(x, y, tw, th, th / 2);
-    ctx.fill();
-    ctx.fillStyle = PAL.INK;
+    var ctx = this.ctx, W = this.W, H = this.H;
+    var rank = Cups.rankFor(this.score);
+    var curLabel = rank.label; // 当前阶段
+    // 下一阶段目标：段内下一阶，或下一段位门槛
+    var tier = Cups.TIERS[rank.tierIdx];
+    var nextLabel = null, gap = 0;
+    if (tier.steps && rank.stageIdx + 1 < tier.steps.length) {
+      var t1 = tier.steps[rank.stageIdx + 1];
+      nextLabel = Cups.rankFor(t1).label;
+      gap = t1 - this.score;
+    } else if (rank.tierIdx + 1 < Cups.TIERS.length) {
+      var t2 = Cups.TIERS[rank.tierIdx + 1].score;
+      nextLabel = Cups.rankFor(t2).label;
+      gap = t2 - this.score;
+    }
+    var dy = this.hudShift();
+    var y = dy + H * 0.155, th = H * 0.046;
+    // 提升动画：升到新阶段时两个标签整体放大再缩回
+    var sc = 1;
+    if (this.rankPulseT > 0) sc = 1 + 0.35 * Math.sin((1 - this.rankPulseT / 0.6) * Math.PI);
+    ctx.save();
+    ctx.translate(W / 2, y + th / 2);
+    ctx.scale(sc, sc);
+    ctx.translate(-W / 2, -(y + th / 2));
     ctx.textAlign = 'center';
-    ctx.fillText(text, this.W / 2, y + th * 0.66);
+    ctx.font = 'bold ' + Math.round(H * 0.019) + 'px sans-serif';
+    if (!nextLabel) {
+      // 已是最高阶段：只显示当前阶段胶囊
+      var tw0 = ctx.measureText(curLabel).width + 32;
+      ctx.fillStyle = PAL.CARD;
+      this.roundRect((W - tw0) / 2, y, tw0, th, th / 2);
+      ctx.fill();
+      ctx.fillStyle = PAL.INK;
+      ctx.fillText(curLabel, W / 2, y + th * 0.68);
+    } else {
+      var cwL = ctx.measureText(curLabel).width + 30;
+      var cwR = ctx.measureText(nextLabel).width + 30;
+      var midW = W * 0.17;
+      var total = cwL + midW + cwR;
+      var x0 = (W - total) / 2;
+      // 左：当前阶段（白底黑字）
+      ctx.fillStyle = PAL.CARD;
+      this.roundRect(x0, y, cwL, th, th / 2);
+      ctx.fill();
+      ctx.fillStyle = PAL.INK;
+      ctx.fillText(curLabel, x0 + cwL / 2, y + th * 0.68);
+      // 中：差分 + 小箭头（指向未达成的下一阶段）
+      var gapTxt = '-' + gap;
+      ctx.font = 'bold ' + Math.round(H * 0.020) + 'px sans-serif';
+      var gw = ctx.measureText(gapTxt).width;
+      var gx = x0 + cwL + midW / 2;
+      ctx.fillStyle = PAL.INK;
+      ctx.fillText(gapTxt, gx - H * 0.008, y + th * 0.68);
+      var ay = y + th / 2, asz = th * 0.20;
+      var ax0 = gx - H * 0.008 + gw / 2 + H * 0.008;
+      ctx.beginPath();
+      ctx.moveTo(ax0, ay - asz);
+      ctx.lineTo(ax0 + asz * 1.5, ay);
+      ctx.lineTo(ax0, ay + asz);
+      ctx.closePath();
+      ctx.fill();
+      // 右：下一阶段（半透灰化 = 未达成）
+      var xr = x0 + cwL + midW;
+      ctx.font = 'bold ' + Math.round(H * 0.019) + 'px sans-serif';
+      ctx.fillStyle = 'rgba(247,245,238,0.55)';
+      this.roundRect(xr, y, cwR, th, th / 2);
+      ctx.fill();
+      ctx.fillStyle = PAL.MUTED;
+      ctx.fillText(nextLabel, xr + cwR / 2, y + th * 0.68);
+    }
+    ctx.restore();
   };
 
   Game.prototype.drawAimHint = function () {
