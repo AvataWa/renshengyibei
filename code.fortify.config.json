@@ -1,0 +1,16 @@
+{
+  "obfuscation": {
+    "level": 3,
+    "files": [
+      "game.js",
+      "src/main.js",
+      "src/game.js",
+      "src/cups.js",
+      "src/containers.js",
+      "src/choices.js",
+      "src/tiers.config.js",
+      "src/lines.js",
+      "openDataContext/index.js"
+    ]
+  }
+}
