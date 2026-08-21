@@ -377,5 +377,18 @@ console.log('9. 开局天赋');
   ok(g14.phase === 'failed' || g14.phase === 'lastChance', '第二杯溢出应正常判负，实际 ' + g14.phase);
 }
 
+// 10. 操作提示时序：开局立即显示；倒完一杯后 1.5 秒无按压再显示
+console.log('10. 操作提示时序');
+{
+  const g = makeGame(); // best=0，无开局抽卡
+  ok(g.phase === 'aim' && g.hintDelay <= 0, '开局应立即显示提示，hintDelay=' + g.hintDelay);
+  g.win(); // 完成一杯 → 进入下一杯
+  step(g, 1.0); // 过完换杯相位进入 aim
+  ok(g.phase === 'aim', '换杯后应进入待倒相位，实际 ' + g.phase);
+  ok(g.hintDelay > 0.4, '新杯提示应有 1.5 秒静默期，剩余 ' + g.hintDelay.toFixed(2));
+  step(g, 1.6);
+  ok(g.hintDelay <= 0, '1.5 秒无按压后提示应再次出现');
+}
+
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);
 process.exit(failCount ? 1 : 0);
