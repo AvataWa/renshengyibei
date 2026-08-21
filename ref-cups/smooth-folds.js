@@ -89,16 +89,17 @@ function gauss(arr, sigma) {
 }
 
 // ---------- 褶子平滑: 趋势 + 平滑后按原幅度回缩的波纹 ----------
+const STRENGTH = 1.3;                  // 平滑力度倍率(用户可调)
 function smoothPts(pts) {
   const N = 161;                       // 密采样(每采样间隔 10 点)
   const dense = [];
   for (let i = 0; i < N; i++) dense.push(catmull(pts, i / (N - 1)));
-  const trend = gauss(dense, 12);      // 大趋势(σ ≈ 1.2 采样间隔)
+  const trend = gauss(dense, 12 * STRENGTH);   // 大趋势
   const res = dense.map((v, i) => v - trend[i]);
-  const resS = gauss(res, 3.5);        // 波纹钝化
+  const resS = gauss(res, 3.5 * STRENGTH);     // 波纹钝化
   const maxR = Math.max(...res.map(Math.abs));
   const maxRS = Math.max(...resS.map(Math.abs));
-  const k = maxRS > 1e-6 ? Math.min(2.0, maxR / maxRS) : 1;   // 恢复褶深, 封顶防爆
+  const k = maxRS > 1e-6 ? Math.min(2.0 * STRENGTH, maxR / maxRS) : 1;   // 恢复褶深
   const final = dense.map((_, i) => trend[i] + resS[i] * k);
   const out = [];
   for (let i = 0; i < 17; i++) {

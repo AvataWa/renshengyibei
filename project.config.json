@@ -53,6 +53,10 @@
         "type": "folder"
       },
       {
+        "value": "ref-cups",
+        "type": "folder"
+      },
+      {
         "value": "index.html",
         "type": "file"
       },
@@ -66,6 +70,14 @@
       },
       {
         "value": "play-lan.js",
+        "type": "file"
+      },
+      {
+        "value": "push-api.js",
+        "type": "file"
+      },
+      {
+        "value": "push-fix.js",
         "type": "file"
       },
       {
@@ -89,7 +101,47 @@
         "type": "file"
       },
       {
+        "value": "export_choices_xlsx.py",
+        "type": "file"
+      },
+      {
+        "value": "gen_choice_preview.py",
+        "type": "file"
+      },
+      {
+        "value": "gen_choice_rows_preview.py",
+        "type": "file"
+      },
+      {
+        "value": "hades_choices_proposal.py",
+        "type": "file"
+      },
+      {
+        "value": "replace_text.py",
+        "type": "file"
+      },
+      {
         "value": "preview-water-v2.png",
+        "type": "file"
+      },
+      {
+        "value": "choice-preview.png",
+        "type": "file"
+      },
+      {
+        "value": "choice-rows-preview.png",
+        "type": "file"
+      },
+      {
+        "value": "choice2-preview.png",
+        "type": "file"
+      },
+      {
+        "value": "lab-cups-preview.png",
+        "type": "file"
+      },
+      {
+        "value": "choices-export.json",
         "type": "file"
       },
       {
@@ -105,7 +157,31 @@
         "type": "file"
       },
       {
+        "value": "test-choices.js",
+        "type": "file"
+      },
+      {
+        "value": "src/cups.js.bak",
+        "type": "file"
+      },
+      {
+        "value": "src/cups.js.pre-smooth",
+        "type": "file"
+      },
+      {
         "value": "倒水游戏策划案.docx",
+        "type": "file"
+      },
+      {
+        "value": "人生选择配置清单.xlsx",
+        "type": "file"
+      },
+      {
+        "value": "人生选择提案-哈迪斯式.xlsx",
+        "type": "file"
+      },
+      {
+        "value": "人生选择提案-哈迪斯式v2.xlsx",
         "type": "file"
       },
       {
