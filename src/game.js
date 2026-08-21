@@ -1846,7 +1846,7 @@
       ctx.fillStyle = PAL.INK;
       ctx.fillText(curLabel, x0 + cwL / 2, y + th * 0.68);
       // 中：差分 + 小箭头（指向未达成的下一阶段）
-      var gapTxt = '-' + gap;
+      var gapTxt = String(gap);
       ctx.font = 'bold ' + Math.round(H * 0.020) + 'px sans-serif';
       var gw = ctx.measureText(gapTxt).width;
       var gx = x0 + cwL + midW / 2;
