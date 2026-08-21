@@ -341,6 +341,23 @@ console.log('9. 开局天赋');
   ok(g.round === 1, '开局天赋选完不应跳杯，实际第 ' + g.round + ' 杯');
   ok(g.choiceIsOpening === false, '选完应清除开局标记');
   ok(g.chosenList.length === 1, '开局选择应记入已做选择');
+
+  // C22 跳槽窗口期：新段首杯免死一次，之后恢复正常判定
+  const g14 = makeGame();
+  g14.pendingChoice = null; g14.choiceIsOpening = false; g14.phase = 'aim';
+  g14.tierIdx = 2; g14.score = Cups.TIERS[2].score + 5;
+  g14.applyChoice(Choices.POOL.find(c => c.id === 'C22'));
+  ok(g14.graceTier === 3, 'C22 应记录免死段位 3，实际 ' + g14.graceTier);
+  g14.tierIdx = 3; // 模拟升到新段位
+  g14.newRound();
+  ok(g14.graceArmed === true, '新段第一杯应带免死');
+  g14.fail('水溢出来啦'); // 第一杯溢出 → 免死转完成
+  ok(g14.phase === 'next', '新段首杯溢出不判负，实际 ' + g14.phase);
+  ok(g14.graceTier === -1 && g14.graceArmed === false, '免死应已消耗并清除');
+  g14.newRound();
+  ok(g14.graceArmed === false, '新段第二杯不应再免死');
+  g14.fail('水溢出来啦'); // 第二杯溢出 → 正常判负
+  ok(g14.phase === 'failed' || g14.phase === 'lastChance', '第二杯溢出应正常判负，实际 ' + g14.phase);
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);

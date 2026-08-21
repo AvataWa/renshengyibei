@@ -325,7 +325,9 @@
           break;
         case 'streakGain2Cups': this.streakGain2Left += v; break;
         case 'bank': m.bank = v; break;
-        case 'tierGrace': this.graceTier = Math.min(this.tierIdx + 1, Cups.TIERS.length - 1); break;
+        case 'tierGrace': // 已到最后一段则无下一段位，免死不生效
+          if (this.tierIdx + 1 < Cups.TIERS.length) this.graceTier = this.tierIdx + 1;
+          break;
         case 'equity': m.equity = true; break;
         case 'fund': m.fund = true; break;
         case 'redo': this.redoLeft += v; break;
@@ -790,7 +792,7 @@
   Game.prototype.win = function (basePts, label) {
     var m = this.mods;
     if (this.reverseCups > 0) this.reverseCups--; // 反转模式消耗一杯
-    if (this.graceArmed) this.graceArmed = false; // 跳槽窗口期：新段第一杯已平安落地
+    if (this.graceArmed) { this.graceArmed = false; this.graceTier = -1; } // 跳槽窗口期：新段第一杯已平安落地，免死消耗
     var sg2 = this.streakGain2Left > 0;           // 整层楼一起：完美计 2 连（限杯数）
     if (this.streakGain2Left > 0) this.streakGain2Left--;
     // 连完美加分：完美 2 分，2 连 3 分，3 连起 4 分（天赐良机可提至 5 分）；非完美/失败断连
@@ -949,9 +951,10 @@
       this.tickCurses();
       return;
     }
-    // 跳槽窗口期：新段位第一杯不计失败，按完成计
+    // 跳槽窗口期：新段位第一杯不计失败，按完成计（消耗后清除，避免整段免死）
     if (this.graceArmed) {
       this.graceArmed = false;
+      this.graceTier = -1;
       this.toast('跳槽窗口期：第一杯有惊无险');
       this.win(1, '有惊无险！');
       return;
