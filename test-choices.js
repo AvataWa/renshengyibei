@@ -61,7 +61,7 @@ console.log('2. 触发链路');
   g.win(2, '完美!');
   ok(!!g.pendingChoice, '升段后应生成三选一');
   ok(g.pendingChoice.length === 3, '应有 3 张卡，实际 ' + (g.pendingChoice || []).length);
-  step(g, 0.6); // next 相位结束
+  step(g, 1.1); // next 相位结束（有人生路口时停留延长 0.5s）
   ok(g.phase === 'choice', '应进入 choice 相位，实际 ' + g.phase);
   step(g, 0.1); // 渲染出 choiceRects
   ok(g.choiceRects && g.choiceRects.length === 3, '应有 3 个卡片热区');

@@ -896,7 +896,8 @@
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
-    this.phaseTimer = 0.48; // 先原样停留 0.3s 看清结果，最后 0.18s 淡出（render 里分两段算透明度）
+    // 先原样停留看清结果（最后 0.18s 淡出）；有人生路口待选时多停 0.5s，让阶段提升的放大回弹/浮字先展示完
+    this.phaseTimer = this.pendingChoice ? 0.98 : 0.48;
   };
 
   Game.prototype.fail = function (reason) {
