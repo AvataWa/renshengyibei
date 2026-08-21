@@ -1,11 +1,12 @@
 /**
  * 人生选择 · 三选一选项池（升阶/升段时触发）
  * ---------------------------------------------------------------
- * 四类：
+ * 五类：
  *   A 对而艰难的事（橙）：提升难度同时提升收益
  *   B 踏实稳定的事（绿）：降低难度或稳定提升收益
  *   C 出奇制胜的事（蓝）：改变规则
  *   D 可遇不可求的事（金）：低概率、高收益、无负面（抽卡时每格 8%）
+ *   U 先苦后甜的事（紫·咒）：先承受若干杯的惩罚，之后获得永久奖励
  *
  * 每项字段：
  *   id     唯一标识
@@ -27,7 +28,8 @@
     A: { label: '对而艰难的事', color: '#E0861A', bg: '#FBEBD2' },
     B: { label: '踏实稳定的事', color: '#2EA85C', bg: '#DFF0E4' },
     C: { label: '出奇制胜的事', color: '#5B8DEF', bg: '#DFE8FB' },
-    D: { label: '可遇不可求的事', color: '#B07A12', bg: '#F7E9C8' }
+    D: { label: '可遇不可求的事', color: '#B07A12', bg: '#F7E9C8' },
+    U: { label: '先苦后甜的事', color: '#8E5BC0', bg: '#EDE4F6' }
   };
 
   var POOL = [
@@ -102,7 +104,44 @@
     { id: 'D16', cat: 'D', name: '梦中情杯', desc: '之后只出现最顺手的 3 种杯型', flavor: '杯子顺手了，水都听话。', tiers: null, fx: { cupSimple3: true } },
     { id: 'D17', cat: 'D', name: '祖传茶壶', desc: '每杯基础分 +2', flavor: '传家宝，越用越有味道。', tiers: [5], fx: { cupBonus: 2 } },
     { id: 'D18', cat: 'D', name: '失而复得', desc: '恢复最高连击，按连击 ×2 加分', flavor: '失去的，会以另一种方式回来。', tiers: [5, 6], fx: { restoreStreak: true } },
-    { id: 'D19', cat: 'D', name: '儿孙满堂', desc: '每杯 +3 分，文案变金色', flavor: '满堂的热闹，是晚年的糖。', tiers: [6], fx: { cupBonus: 3, goldLines: true } }
+    { id: 'D19', cat: 'D', name: '儿孙满堂', desc: '每杯 +3 分，文案变金色', flavor: '满堂的热闹，是晚年的糖。', tiers: [6], fx: { cupBonus: 3, goldLines: true } },
+
+    // ────────── v2 · 哈迪斯式提案（玩家标记「加入」的 29 条） ──────────
+    // 人类幼崽 · 奶
+    { id: 'A21', cat: 'A', name: '厌食拉锯', desc: '目标区每 0.8 秒在 ±4% 内脉冲缩放，每次完美 +2 分', flavor: '吃一口躲三口，斗智斗勇。', tiers: [0], fx: { zonePulse: { amp: 0.04, period: 0.8 }, perfectBonus: 2 } },
+    { id: 'A22', cat: 'A', name: '学饮过渡', desc: '每杯允许松手一次再续按（断点续倒），完美 −10%', flavor: '呛一口，歇一下，接着来。', tiers: [0], fx: { resume: 1, perfectScale: 0.9 } },
+    { id: 'U1', cat: 'U', name: '断奶的哭声', desc: '接下来 5 杯完美 −20%，之后完美 +15%', flavor: '哭过这一阵，就长大了。', tiers: [0], fx: { curse: { cups: 5, pen: { perfectScale: 0.8 }, reward: { perfectScale: 1.15 } } } },
+    { id: 'U2', cat: 'U', name: '疫苗接种日', desc: '接下来 3 杯出水 +25%，之后完成 +15%', flavor: '一针下去，免疫力 +1。', tiers: [0], fx: { curse: { cups: 3, pen: { pourRateScale: 1.25 }, reward: { completeScale: 1.15 } } } },
+    { id: 'B21', cat: 'B', name: '拍嗝手法', desc: '每 3 杯额外 +1 分', flavor: '拍拍背，顺顺气。', tiers: [0], fx: { everyN: { n: 3, pts: 1 } } },
+    // 元气少年 · 可乐
+    { id: 'A23', cat: 'A', name: '摇过的汽水', desc: '每次完美后，下一杯出水初速 +40%（逐帧衰减），每次完美 +1 分', flavor: '摇得越狠，开盖越冲。', tiers: [1], fx: { nextCupBoost: 1.4, perfectBonus: 1 } },
+    { id: 'A24', cat: 'A', name: '跑气的可乐', desc: '目标区从 +20% 开始随时间缩小（8 秒后缩到 −10%），越早判定越宽', flavor: '汽水要趁有气的时候喝。', tiers: [1], fx: { zoneDecay: { from: 1.2, to: 0.9, secs: 8 } } },
+    { id: 'A25', cat: 'A', name: '汽水洗杯', desc: '每杯开始杯内残留上杯 10% 水位（占用容量），每杯 +1 分', flavor: '没洗的杯子，泡着昨天的味道。', tiers: [1], fx: { residue: 0.1, cupBonus: 1 } },
+    { id: 'U3', cat: 'U', name: '禁带零食', desc: '接下来 5 杯完成 −20%，之后每杯 +2 分', flavor: '小卖部的门，终将再开。', tiers: [1], fx: { curse: { cups: 5, pen: { completeScale: 0.8 }, reward: { cupBonus: 2 } } } },
+    { id: 'B22', cat: 'B', name: '气泡垫', desc: '水位进入目标区时出水自动减速 50%（每杯一次）', flavor: '气泡托你一把。', tiers: [1], fx: { zoneCushion: 0.5 } },
+    // 未来可期 · 麦芽
+    { id: 'U4', cat: 'U', name: '挂科重修', desc: '接下来 5 杯完美 −25%，之后完美 +20%', flavor: '重修的教室，坐着更认真的你。', tiers: [2], fx: { curse: { cups: 5, pen: { perfectScale: 0.75 }, reward: { perfectScale: 1.2 } } } },
+    { id: 'U5', cat: 'U', name: '异地恋', desc: '接下来 8 杯出水 +15%，之后每杯 +2 分', flavor: '隔着屏幕的日子，都在攒见面。', tiers: [2], fx: { curse: { cups: 8, pen: { pourRateScale: 1.15 }, reward: { cupBonus: 2 } } } },
+    { id: 'B23', cat: 'B', name: '满杯仪式', desc: '连续 2 杯完美后，第 3 杯完美区 +25%', flavor: '好事不过三，三杯刚刚好。', tiers: [2], fx: { fullRite: 1.25 } },
+    { id: 'B24', cat: 'B', name: '学长传位', desc: '连击 ≥3 时每杯 +2 分', flavor: '位置传给你了，别掉链子。', tiers: [2], fx: { streakMin3: 2 } },
+    { id: 'C19', cat: 'C', name: '挂杯', desc: '每次完美在杯壁挂一层泡沫（可见），每层 +1 分；出现非完美全部脱落', flavor: '泡沫挂得住，才算好麦芽。', tiers: [2], fx: { foamCup: true } },
+    { id: 'C20', cat: 'C', name: '碰杯约定', desc: '每局随机一个「约定水位」，停在该水位 ±3% 额外 +3 分', flavor: '说好了，就在这里碰杯。', tiers: [2], fx: { toastTarget: true } },
+    { id: 'D20', cat: 'D', name: '整层楼一起', desc: '接下来 5 杯，每次完美计 2 连', flavor: '一个人喝是闷，一层楼喝是青春。', tiers: [2], fx: { streakGain2Cups: 5 } },
+    // 职场新人 · 葡萄汁
+    { id: 'A26', cat: 'A', name: '考证大军', desc: '完美 −10%，每 5 杯 +3 分', flavor: '教材厚度，决定工资厚度。', tiers: [3], fx: { perfectScale: 0.9, everyN: { n: 5, pts: 3 } } },
+    { id: 'U6', cat: 'U', name: '试用期', desc: '接下来 6 杯完成 −15%，之后完成 +20%', flavor: '三个月的低头，换转正后的抬头。', tiers: [3], fx: { curse: { cups: 6, pen: { completeScale: 0.85 }, reward: { completeScale: 1.2 } } } },
+    { id: 'B25', cat: 'B', name: '周报模板', desc: '连续 3 杯同一结果（全完美或全完成），额外 +4 分', flavor: '模板用熟了，周报五分钟。', tiers: [3], fx: { sameStreak3: 4 } },
+    { id: 'C21', cat: 'C', name: '复利账户', desc: '每杯得分 50% 存入账户，账户每杯生息 10%，升段时可取出', flavor: '钱生钱的道理，一杯就懂。', tiers: [3], fx: { bank: { rate: 0.5, interest: 0.1 } } },
+    { id: 'C22', cat: 'C', name: '跳槽窗口期', desc: '立即 +5 分，且下一段位的第一杯不计失败', flavor: 'offer 到手的那天，走路带风。', tiers: [3], fx: { instantScore: 5, tierGrace: true } },
+    { id: 'D21', cat: 'D', name: '股票分红', desc: '当前总分 +30%', flavor: '意外的收益，犒赏认真的人。', tiers: [3], fx: { scoreMultNow: 1.3 } },
+    { id: 'D22', cat: 'D', name: '股权池', desc: '之后每杯 +1 分存入股权，结算时股权 ×3 兑现', flavor: '熬到兑现那天，都值了。', tiers: [3], fx: { equity: true } },
+    // 职场中坚 · 玉露
+    { id: 'B26', cat: 'B', name: '退路基金', desc: '每杯 +1 分存入基金，基金 ≥10 分时自动抵消一次失败', flavor: '留一手的人，输得起。', tiers: [4], fx: { fund: true } },
+    { id: 'C23', cat: 'C', name: '重来一杯', desc: '每局 2 次：判定失败后可选择重倒该杯（放弃原结果）', flavor: '中年的奢侈，是重来一次的机会。', tiers: [4], fx: { redo: 2 } },
+    // 人间清醒 · 茶
+    { id: 'B27', cat: 'B', name: '回甘', desc: '每次完美后，下一杯前 1 秒出水 −20%', flavor: '回甘来时，急不得。', tiers: [5], fx: { afterPerfectSlow: { dur: 1, scale: 0.8 } } },
+    { id: 'B28', cat: 'B', name: '茶宠', desc: '连续 5 杯不失败养成茶宠：之后每杯 +1 分', flavor: '茶宠是泡出来的，人是熬出来的。', tiers: [5], fx: { teapot: { need: 5, bonus: 1 } } },
+    { id: 'D23', cat: 'D', name: '茶气通透', desc: '此后完美区宽度不再被任何效果缩小（状态免疫）', flavor: '一通百通，百毒不侵。', tiers: [5], fx: { perfectLockWidth: true } }
   ];
 
   // ────────── 段位效果池（当前池内无段位卡，机制保留在 game.js，随时可挂回卡片） ──────────

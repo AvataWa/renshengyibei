@@ -49,29 +49,29 @@
     },
     {
       key: 'wine', name: '职场新人', stage: '职场新人',
-      score: 90, steps: [90, 105, 120], stages: ['初入', '上手', '转正'],
+      score: 90, steps: [90, 140, 190], stages: ['初入', '上手', '转正'],
       pourRate: 0.55, cupCount: 16,
       line: '只倒三分之一——职场第一课：留余地。',
       wisdom: '葡萄汁只倒三分满。杯留余地，人也留余地，香气才进得来。'
     },
     {
       key: 'baijiu', name: '职场中坚', stage: '职场中坚',
-      score: 150, steps: [150, 170, 190], stages: ['扛事', '带队', '掌局'],
-      pourRate: 0.6, cupCount: 18,
+      score: 250, steps: [250, 310, 380], stages: ['扛事', '带队', '掌局'],
+      pourRate: 0.65, cupCount: 18,
       line: '这一杯，敬客户，也敬自己。',
       wisdom: '杯满敬人，话满误事。这一杯的分寸，是二十年饭局换的。'
     },
     {
       key: 'tea', name: '人间清醒', stage: '职场老人',
-      score: 230, steps: [230, 255, 280], stages: ['观局', '知止', '不惑'],
-      pourRate: 0.65, cupCount: 10,
+      score: 460, steps: [460, 540, 620], stages: ['观局', '知止', '不惑'],
+      pourRate: 0.75, cupCount: 10,
       line: '七分是茶，三分是分寸。',
       wisdom: '茶倒七分满，剩下三分是情谊。倒得太满，烫的是端杯的人。'
     },
     {
       key: 'warmmilk', name: '岁月回甘', stage: '老人',
-      score: 330, steps: [330, 365, 400], stages: ['回甘', '归简', '圆满'],
-      pourRate: 0.7, cupCount: 22,
+      score: 700, steps: [700, 790, 880], stages: ['回甘', '归简', '圆满'],
+      pourRate: 0.85, cupCount: 22,
       line: '转了一大圈，又回到一杯奶。这一杯，敬岁月。',
       wisdom: '从奶瓶到杯又回到奶瓶。人生闭环，暖的都是同一个胃。'
     }

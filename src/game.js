@@ -110,7 +110,12 @@
       goldLines: false, hideMarks: false, zoneWander: false,
       timeSlow: false, bubbleBoost: false, invertCups: false,
       sizeVariance: false, comboZoneGrow: false,
-      cupSizeMul: 1, cupAspectMul: 1, poolOverride: null
+      cupSizeMul: 1, cupAspectMul: 1, poolOverride: null,
+      zonePulse: null, zoneDecay: null, residue: 0, zoneCushion: 0,
+      nextCupBoost: 0, fullRite: 0, streakMin3: 0, sameStreak3: 0,
+      foamCup: false, toastTarget: false, bank: null, equity: false,
+      fund: false, afterPerfectSlow: null, teapot: null,
+      perfectLockWidth: false, resume: false
     };
     // 计数型效果（随杯数消耗）
     this.rushCups = 0;        // 极限冲刺
@@ -135,6 +140,30 @@
     this.choiceListOpen = false; // 「已做选择」面板开关
     this.listScroll = 0;      // 面板滚动偏移
     this._listDrag = null;    // 面板拖动状态
+    // ── v2 新机制状态 ──
+    this.curses = [];         // 先苦后甜：{left, pen, reward, name}
+    this.roundStartT = 0;     // 本杯开始时刻（区域脉冲/衰减用）
+    this.prevLevel = 0;       // 上一杯最终水位（汽水洗杯残量用）
+    this.cushionArmed = false;// 气泡垫：本杯进区缓冲是否还可用
+    this.boostLeft = 0;       // 摇过的汽水：下一杯初速加成剩余秒数
+    this.streakGain2Left = 0; // 整层楼一起：完美计 2 连的剩余杯数
+    this.foamLayers = 0;      // 挂杯：当前杯壁泡沫层数
+    this.toastLevel = 0;      // 碰杯约定：本局约定水位（0=未启用）
+    this.bankBal = 0;         // 复利账户余额
+    this.graceTier = -1;      // 跳槽窗口期：免失败的段位序号
+    this.graceArmed = false;  // 跳槽窗口期：当前杯是否带免死
+    this.equityBal = 0;       // 股权池股数
+    this.fundBal = 0;         // 退路基金余额
+    this.redoLeft = 0;        // 重来一杯：剩余悔棋次数
+    this.slowStartArm = false;// 回甘：下一杯前 1 秒减速（跨杯传递标记）
+    this.slowStartOn = false; // 回甘：本杯是否生效
+    this.teapotN = 0;         // 茶宠：连续不失败杯数
+    this.teapotOn = false;    // 茶宠：是否已养成
+    this.sameType = '';       // 周报模板：上一杯结果类型 P/C
+    this.sameN = 0;           // 周报模板：同结果连续杯数
+    this.resumeLeft = 0;      // 学饮过渡：本杯剩余续倒次数
+    this.preCup = null;       // 悔棋快照 {score, streak}
+    this.lastChanceRects = null; // 悔棋面板按钮热区
   };
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
@@ -142,8 +171,21 @@
     var m = this.mods, z = this.cup.zones;
     var qc = (z.q[0] + z.q[1]) / 2;
     var qw = (z.q[1] - z.q[0]) * m.completeScale;
-    var pw = (z.p[1] - z.p[0]) * m.perfectScale;
+    var basePw = z.p[1] - z.p[0];
+    var pw = basePw * m.perfectScale;
+    var cupT = this.time - (this.roundStartT || 0); // 本杯进行时长
+    if (m.zoneDecay) { // 跑气的可乐：目标区随时间从 from 缩到 to
+      var dt01 = Math.max(0, Math.min(1, cupT / m.zoneDecay.secs));
+      var df = m.zoneDecay.from + (m.zoneDecay.to - m.zoneDecay.from) * dt01;
+      qw *= df; pw *= df;
+    }
+    if (m.zonePulse) { // 厌食拉锯：目标区周期性脉冲缩放
+      var pf = 1 + m.zonePulse.amp * Math.sin(cupT * Math.PI * 2 / m.zonePulse.period);
+      qw *= pf; pw *= pf;
+    }
     if (m.comboZoneGrow) pw *= 1 + Math.min(0.5, 0.05 * this.perfectStreak); // 时间的玫瑰（上限 +50%）
+    if (m.fullRite && this.perfectStreak > 0 && this.perfectStreak % 3 === 2) pw *= m.fullRite; // 满杯仪式：第 3 杯蓄能
+    if (m.perfectLockWidth) pw = Math.max(pw, basePw); // 茶气通透：完美区宽度免疫缩小
     var shift = m.zoneShift + this.zoneShiftRound;
     if (m.zoneWander) shift += Math.sin(this.time * 0.9) * 0.03; // 独立带娃
     var qLo = qc - qw / 2 + shift, qHi = qc + qw / 2 + shift;
@@ -174,7 +216,7 @@
       if (self.usedChoiceIds[c.id]) return false;
       return c.tiers == null || c.tiers.indexOf(self.tierIdx) >= 0;
     });
-    var cats = ['A', 'B', 'C'];
+    var cats = ['A', 'B', 'C', 'U']; // 先苦后甜（咒）与 A/B/C 一起洗牌，三格取其三
     for (var i = cats.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1)), t = cats[i]; cats[i] = cats[j]; cats[j] = t;
     }
@@ -262,6 +304,34 @@
           break;
         }
         case 'restartMilk': this.score = 0; break;
+        // ── v2 新效果键 ──
+        case 'zonePulse': m.zonePulse = v; break;
+        case 'zoneDecay': m.zoneDecay = v; break;
+        case 'residue': m.residue = Math.max(m.residue, v); break;
+        case 'zoneCushion': m.zoneCushion = v; break;
+        case 'nextCupBoost': m.nextCupBoost = Math.max(m.nextCupBoost, v); break;
+        case 'fullRite': m.fullRite = v; break;
+        case 'streakMin3': m.streakMin3 += v; break;
+        case 'sameStreak3': m.sameStreak3 += v; break;
+        case 'foamCup': m.foamCup = true; break;
+        case 'toastTarget':
+          m.toastTarget = true;
+          this.toastLevel = 0.35 + Math.random() * 0.5; // 约定水位：每局一次
+          break;
+        case 'streakGain2Cups': this.streakGain2Left += v; break;
+        case 'bank': m.bank = v; break;
+        case 'tierGrace': this.graceTier = Math.min(this.tierIdx + 1, Cups.TIERS.length - 1); break;
+        case 'equity': m.equity = true; break;
+        case 'fund': m.fund = true; break;
+        case 'redo': this.redoLeft += v; break;
+        case 'afterPerfectSlow': m.afterPerfectSlow = v; break;
+        case 'teapot': m.teapot = v; break;
+        case 'perfectLockWidth': m.perfectLockWidth = true; break;
+        case 'resume': m.resume = true; break;
+        case 'curse': // 先苦后甜：惩罚立即生效，杯数耗尽后移除并发放奖励
+          this.applyFxMap(v.pen, 1);
+          this.curses.push({ left: v.cups, pen: v.pen, reward: v.reward, name: opt.name });
+          break;
       }
     }
     // 人生选择不再改变段位/瓶子：任何加分最多顶到下一段门槛前，段位只能靠倒水来升
@@ -278,6 +348,33 @@
     this.pendingChoice = null;
     this.pendingTierFx = null;
     this.newRound();
+  };
+
+  // 通用修正表套用/撤销（先苦后甜的惩罚与奖励用）：sign=1 套用，-1 撤销
+  Game.prototype.applyFxMap = function (fx, sign) {
+    var m = this.mods;
+    for (var k in fx) {
+      var v = fx[k];
+      if (k === 'perfectScale' || k === 'completeScale' || k === 'pourRateScale' || k === 'scoreMult') {
+        m[k] *= sign > 0 ? v : 1 / v;
+      } else if (k === 'cupBonus' || k === 'perfectBonus' || k === 'comboBonus') {
+        m[k] += sign * v;
+      }
+    }
+  };
+
+  // 每杯判定后推进先苦后甜：杯数耗尽 → 撤销惩罚、发放奖励
+  Game.prototype.tickCurses = function () {
+    for (var i = this.curses.length - 1; i >= 0; i--) {
+      var c = this.curses[i];
+      c.left--;
+      if (c.left <= 0) {
+        this.applyFxMap(c.pen, -1);
+        this.applyFxMap(c.reward, 1);
+        this.curses.splice(i, 1);
+        this.toast('苦尽甘来：「' + c.name + '」的回甘到了');
+      }
+    }
   };
 
   // 段位之力抽屉：随机抽一个段位 → 从该段位效果池随机 1 条直接生效，
@@ -402,6 +499,19 @@
         this._listDrag = null;
         return;
       }
+      // 悔棋面板：重来一杯 / 接受结局（面板打开时吞掉其它点击）
+      if (this.phase === 'lastChance') {
+        var lcs = this.lastChanceRects || [];
+        for (var li = 0; li < lcs.length; li++) {
+          var lr = lcs[li];
+          if (x >= lr.x && x <= lr.x + lr.w && y >= lr.y && y <= lr.y + lr.h) {
+            if (lr.key === 'redo') this.redoCup();
+            else { this.redoLeft = 0; this.finalizeFail(this.failReason); }
+            return;
+          }
+        }
+        return;
+      }
       // 人生选择：点选三张卡之一（弹出 1 秒内不响应，防误触）
       if (this.phase === 'choice') {
         if (this.time - this.choiceOpenT < 1) return;
@@ -474,6 +584,13 @@
       }
       this.phase = 'settle';
       this.phaseTimer = 0.35;
+      // 学饮过渡：松手后不判定，回到待按状态可续倒一次
+      if (this.mods.resume && this.resumeLeft > 0) {
+        this.resumeLeft--;
+        this.usedPress = false;
+        this.phase = 'aim';
+        this.toast('歇一口，再按继续倒');
+      }
     }
   };
 
@@ -569,6 +686,13 @@
     if (this.doubleCups > 0) this.doubleCups--;
     this.slowTapOn = false;
     this.reverseLock = false;
+    // v2 每杯状态重置
+    this.roundStartT = this.time;                      // 区域脉冲/衰减计时起点
+    this.cushionArmed = this.mods.zoneCushion > 0;     // 气泡垫：本杯一次进区缓冲
+    this.resumeLeft = this.mods.resume ? 1 : 0;        // 学饮过渡：本杯一次断点续倒
+    this.slowStartOn = !!this.slowStartArm;            // 回甘：上杯完美 → 本杯前 1 秒减速
+    this.slowStartArm = false;
+    this.graceArmed = this.graceTier >= 0 && this.graceTier === this.tierIdx; // 跳槽窗口期
     // 错位竞争：目标区每杯随机平移
     this.zoneShiftRound = this.mods.zoneRandom ? (Math.random() - 0.5) * 0.12 : 0;
     // 饮品绑定段位（容器/颜色/名称随段位切换）
@@ -608,7 +732,9 @@
     this.bucketW = this.halfW * 2.3;
     this.bucketH = this.H * 0.1456;
 
-    this.level = 0;
+    // 汽水洗杯：杯内残留上杯 10% 水位（占用容量）
+    this.level = (this.mods.residue > 0 && this.prevLevel > 0)
+      ? Math.min(0.95, this.prevLevel * this.mods.residue) : 0;
     this.poured = 0;
     this.angle = 0;
     this.pressing = false;
@@ -616,6 +742,8 @@
     this.phase = 'aim';
     this.failReason = '';
     this.roundFade = 0; // 新杯淡入过渡进度（update 中推进到 1）
+    // 悔棋快照：本杯开始前的分数/连击（重来一杯回滚用）
+    this.preCup = { score: this.score, streak: this.perfectStreak };
 
     // 反其道而行：水流自倒（满倾角待机），点按定格；计数消耗在判定后
     if (this.reverseCups > 0) {
@@ -629,12 +757,18 @@
   Game.prototype.win = function (basePts, label) {
     var m = this.mods;
     if (this.reverseCups > 0) this.reverseCups--; // 反转模式消耗一杯
+    if (this.graceArmed) this.graceArmed = false; // 跳槽窗口期：新段第一杯已平安落地
+    var sg2 = this.streakGain2Left > 0;           // 整层楼一起：完美计 2 连（限杯数）
+    if (this.streakGain2Left > 0) this.streakGain2Left--;
     // 连完美加分：完美 2 分，2 连 3 分，3 连起 4 分（天赐良机可提至 5 分）；非完美/失败断连
     var pts = basePts;
     if (basePts === 2) {
-      this.perfectStreak += m.streakGain; // 深夜改稿：一次计 2 连
+      this.perfectStreak += sg2 ? Math.max(m.streakGain, 2) : m.streakGain; // 深夜改稿：一次计 2 连
       pts = 2 + Math.min(this.perfectStreak - 1, m.comboCap - 2) + m.comboBonus;
       if (m.perfectDouble || this.onlyPerfectCups > 0) pts *= 2; // 精准强迫症 / 孤注一掷
+      if (m.foamCup) this.foamLayers++; // 挂杯：完美挂一层泡沫
+      if (m.nextCupBoost > 1) this.boostLeft = 1.2; // 摇过的汽水：下一杯初速加成
+      if (m.afterPerfectSlow) this.slowStartArm = true; // 回甘：下一杯前 1 秒减速
       if (this.perfectStreak >= 2) label = this.perfectStreak + '连完美!';
       if (this.perfectStreak > this.bestStreakRun) this.bestStreakRun = this.perfectStreak;
     } else {
@@ -643,7 +777,11 @@
         if (m.comboProtect > 0 && this.perfectStreak > 0) { m.comboProtect--; this.toast('连击保护 −1'); }
         else this.perfectStreak = 0;
       }
+      if (m.foamCup && this.foamLayers > 0) { this.foamLayers = 0; this.toast('泡沫全脱落了'); } // 挂杯：非完美脱落
     }
+    // 周报模板：连续同结果计数
+    var resType = basePts === 2 ? 'P' : 'C';
+    if (resType === this.sameType) this.sameN++; else { this.sameType = resType; this.sameN = 1; }
     if (this.onlyPerfectCups > 0 && basePts < 2) {
       pts = 0; // 孤注一掷：非完美不得分
       label = '只差一步';
@@ -651,14 +789,40 @@
       pts += m.cupBonus;
       if (basePts === 2) pts += m.perfectBonus;
       if (this.rushCups > 0) pts += 2; // 极限冲刺
+      if (m.streakMin3 > 0 && this.perfectStreak >= 3) pts += m.streakMin3; // 学长传位
+      if (m.foamCup && this.foamLayers > 0) pts += this.foamLayers; // 挂杯：每层 +1
+      if (m.sameStreak3 > 0 && this.sameN > 0 && this.sameN % 3 === 0) { // 周报模板
+        pts += m.sameStreak3;
+        this.floats.push({ text: '周报模板 +' + m.sameStreak3, x: this.W / 2, y: this.H * 0.3, life: 1.4, color: '#2EA85C', size: 0.03 });
+      }
+      if (m.toastTarget && this.toastLevel > 0 && Math.abs(this.level - this.toastLevel) <= 0.03) { // 碰杯约定
+        pts += 3;
+        this.floats.push({ text: '碰杯约定 +3', x: this.W / 2, y: this.H * 0.26, life: 1.4, color: '#B07A12', size: 0.03 });
+      }
       if (this.doubleCups > 0) pts *= 2; // 一夜爆红
       pts = Math.round(pts * m.scoreMult); // 创业初期 / 重启人生
-      for (var ei = 0; ei < this.everyNs.length; ei++) { // 定期存款/稳定工作/双线作战
+      for (var ei = 0; ei < this.everyNs.length; ei++) { // 定期存款/稳定工作/双线作战/拍嗝手法/考证大军
         var en = this.everyNs[ei];
         if (this.round % en.n === 0) pts += en.pts;
       }
+      if (m.bank) { // 复利账户：先生息，再把本杯得分 50% 存入
+        this.bankBal *= (1 + m.bank.interest);
+        var dep = Math.round(pts * m.bank.rate);
+        pts -= dep;
+        this.bankBal += dep;
+      }
     }
     this.score += pts;
+    if (m.equity) this.equityBal += 1; // 股权池：每杯 1 股，结算 ×3 兑现
+    if (m.fund) this.fundBal += 1;     // 退路基金：每杯存 1
+    if (m.teapot && !this.teapotOn) {  // 茶宠：连续不失败养成
+      this.teapotN++;
+      if (this.teapotN >= m.teapot.need) {
+        this.teapotOn = true;
+        m.cupBonus += m.teapot.bonus;
+        this.toast('茶宠养成了！之后每杯 +' + m.teapot.bonus);
+      }
+    }
     this.totalCups++;
     this.env.setStorage('totalCups', String(this.totalCups));
     // 本局得分 → 段位/阶晋升检测（失败后重开即从 0 段倒奶重来）
@@ -683,6 +847,16 @@
     }
     if (didTierUp) {
       this.tierIdx = newTier;
+      // 复利账户：升段时取出全部本息
+      if (m.bank && this.bankBal > 0) {
+        var cashIn = Math.round(this.bankBal);
+        this.bankBal = 0;
+        this.score += cashIn;
+        newRank = Cups.rankFor(this.score);
+        newTier = newRank.tierIdx;
+        this.tierIdx = newTier;
+        this.floats.push({ text: '复利到账 +' + cashIn, x: this.W / 2, y: this.hudShift() + this.H * 0.31, life: 1.8, color: '#B07A12' });
+      }
       var t = Cups.TIERS[newTier];
       this.floats.push({ text: '成长！' + newRank.label, x: this.W / 2, y: this.hudShift() + this.H * 0.265, life: 1.8, color: PAL.INK });
       this.toast(t.line);
@@ -701,13 +875,16 @@
     this.floats.push({ text: label, x: this.W / 2, y: ptsY + this.H * 0.042, life: 1.4, color: PAL.INK, size: 0.024 });
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
+    this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
     this.phaseTimer = 0.48; // 先原样停留 0.3s 看清结果，最后 0.18s 淡出（render 里分两段算透明度）
   };
 
   Game.prototype.fail = function (reason) {
     this.perfectStreak = 0;
+    this.prevLevel = this.level; // 汽水洗杯：溢出失败也记下最终水位
     var m = this.mods;
+    if (m.foamCup && this.foamLayers > 0) this.foamLayers = 0; // 挂杯：失败泡沫全脱落
     // 日更写作：失败额外扣分（不会因此掉段——段位只随倒水前进）
     if (m.failPenalty > 0) {
       var floor = Cups.TIERS[this.tierIdx].score;
@@ -722,9 +899,46 @@
       this.phase = 'next';
       this.phaseTimer = 0.6;
       if (this.vibrateOn) this.env.vibrate();
+      this.tickCurses();
       return;
     }
+    // 退路基金：攒够 10 自动抵一次失败
+    if (m.fund && this.fundBal >= 10) {
+      this.fundBal -= 10;
+      this.toast('退路基金 −10：替你挡下这次失败');
+      this.failReason = '';
+      this.phase = 'next';
+      this.phaseTimer = 0.6;
+      if (this.vibrateOn) this.env.vibrate();
+      this.tickCurses();
+      return;
+    }
+    // 跳槽窗口期：新段位第一杯不计失败，按完成计
+    if (this.graceArmed) {
+      this.graceArmed = false;
+      this.toast('跳槽窗口期：第一杯有惊无险');
+      this.win(1, '有惊无险！');
+      return;
+    }
+    // 重来一杯：还有悔棋次数时，进入选择面板而非直接结算
+    if (this.redoLeft > 0) {
+      this.failReason = reason;
+      this.phase = 'lastChance';
+      if (this.vibrateOn) this.env.vibrate();
+      return;
+    }
+    this.finalizeFail(reason);
+  };
+
+  // 真正的结算：股权池兑现 → 落幕 → 更新最高分
+  Game.prototype.finalizeFail = function (reason) {
     this.failReason = reason;
+    if (this.mods.equity && this.equityBal > 0) {
+      var cash = this.equityBal * 3;
+      this.equityBal = 0;
+      this.score += cash;
+      this.toast('股权池兑现 +' + cash);
+    }
     this.phase = 'failed';
     this.phaseTimer = 0.9;
     if (this.vibrateOn) this.env.vibrate();
@@ -736,8 +950,22 @@
     }
   };
 
+  // 悔棋「重来一杯」：回滚本杯得分/连击，用同一只杯子重倒
+  Game.prototype.redoCup = function () {
+    this.redoLeft--;
+    if (this.preCup) {
+      this.score = this.preCup.score;
+      this.perfectStreak = this.preCup.streak;
+    }
+    this._keepCup = true;
+    this.failReason = '';
+    this.toast('重来一杯（剩 ' + this.redoLeft + ' 次）');
+    this.newRound();
+  };
+
   Game.prototype.judge = function () {
     var z = this.effZones(), f = this.level, m = this.mods;
+    this.prevLevel = this.level; // 汽水洗杯：记下本杯最终水位
     if (f >= z.p[0] && f <= z.p[1]) { this.win(2, '完美!'); return; }
     // 无心插柳：轻微超完美线也算完美
     if (m.overflowToPerfect > 0 && f > z.p[1] && f <= z.p[1] + m.overflowToPerfect) { this.win(2, '完美!'); return; }
@@ -803,7 +1031,7 @@
 
     if (this.phase === 'press' && this.pressing) {
       this.angle = Math.min(this.angle + T.TILT_SPEED * dt, T.MAX_TILT);
-    } else if (this.phase === 'settle' || this.phase === 'next' || this.phase === 'failed') {
+    } else if (this.phase === 'settle' || this.phase === 'next' || this.phase === 'failed' || this.phase === 'lastChance') {
       this.angle = Math.max(this.angle - T.RETURN_SPEED * dt, 0);
     }
 
@@ -823,6 +1051,22 @@
       if (this.rushCups > 0) rateMul *= 1.3;
       if (this.slowTapOn) rateMul *= 0.4;
       if (m.timeSlow) rateMul *= Math.max(0.4, 1.5 - (this.time - this.pressStart) * 0.8);
+      // 摇过的汽水：上杯完美 → 本杯初速 +40%，随时间衰减回 1
+      if (this.boostLeft > 0 && m.nextCupBoost > 1) {
+        rateMul *= 1 + (m.nextCupBoost - 1) * Math.max(0, this.boostLeft / 1.2);
+        this.boostLeft -= dt;
+      }
+      // 回甘：本杯前 1 秒出水 −20%
+      if (this.slowStartOn && m.afterPerfectSlow &&
+          (this.time - this.pressStart) < m.afterPerfectSlow.dur) {
+        rateMul *= m.afterPerfectSlow.scale;
+      }
+      // 气泡垫：水位进入目标区后出水减半（每杯一次，出区即消耗）
+      if (this.cushionArmed && m.zoneCushion > 0) {
+        var cz = this.effZones();
+        if (this.level >= cz.q[0] && this.level <= cz.q[1]) rateMul *= (1 - m.zoneCushion);
+        else if (this.level > cz.q[1]) this.cushionArmed = false;
+      }
       var df = baseRate * ramp * rateMul * (1 + T.RATE_ACCEL * tiltFrac) * wr * wr * dt;
       this.level += df;
       this.poured += df;
@@ -964,6 +1208,7 @@
     // 人生选择三选一（局内最顶层，半透压暗背景）
     if (this.state === 'play' && this.phase === 'choice') this.drawChoice();
     if (this.state === 'play' && this.phase === 'choice2') this.drawChoice2();
+    if (this.state === 'play' && this.phase === 'lastChance') this.drawLastChance();
     if (this.state === 'play') this.drawChoicesBtn(); // 「已做选择」按钮常显（含抽卡界面，便于决策参考）
     if (this.state === 'play' && this.choiceListOpen) this.drawChoicesList();
   };
@@ -1198,6 +1443,23 @@
         ctx.globalAlpha = 1;
       }
     }
+    // 挂杯：每次完美在杯壁挂一层泡沫（液面上方依次叠加；非完美全部脱落）
+    if (this.mods.foamCup && this.foamLayers > 0) {
+      var f0 = Math.min(this.level, 1);
+      ctx.strokeStyle = 'rgba(255,246,224,0.95)';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 5;
+      for (var fli = 0; fli < Math.min(this.foamLayers, 8); fli++) {
+        var ft = Math.min(0.97, f0 + 0.035 + fli * 0.035);
+        var fw3 = this.halfW * cup.profile(ft) * 0.9;
+        var fy3 = this.baseY - ft * h;
+        ctx.beginPath();
+        ctx.moveTo(this.cx - fw3, fy3);
+        ctx.lineTo(this.cx + fw3, fy3);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+    }
     ctx.restore();
 
     if (useSpr) {
@@ -1275,6 +1537,23 @@
       ctx.beginPath(); ctx.moveTo(this.cx - wAt, yy); ctx.lineTo(this.cx + wAt, yy); ctx.stroke();
     }
     ctx.restore();
+    }
+
+    // 碰杯约定：淡金色虚线标出本局约定水位（停在 ±3% 内 +3 分）
+    if (this.mods.toastTarget && this.toastLevel > 0) {
+      ctx.save();
+      ctx.setLineDash([4, 5]);
+      ctx.strokeStyle = 'rgba(176,122,18,0.50)';
+      ctx.lineWidth = 2;
+      var tw2 = this.halfW * cup.profile(this.toastLevel);
+      var ty2 = this.baseY - this.toastLevel * h;
+      ctx.beginPath(); ctx.moveTo(this.cx - tw2, ty2); ctx.lineTo(this.cx + tw2, ty2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(176,122,18,0.65)';
+      ctx.font = Math.round(this.H * 0.015) + 'px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('约定', this.cx + tw2 + 5, ty2 + 5);
+      ctx.restore();
     }
   };
 
@@ -1483,6 +1762,19 @@
       ctx.font = Math.round(this.H * 0.014) + 'px sans-serif';
       ctx.fillStyle = PAL.MUTED;
       ctx.fillText('下一杯 · ' + this.nextCupPre.name, this.W / 2, dy + this.H * 0.152);
+    }
+    // 资金池/诅咒状态条（仅在有相关选择时显示）
+    var chips = [];
+    if (this.mods.bank) chips.push('复利 ¥' + Math.round(this.bankBal));
+    if (this.mods.fund) chips.push('基金 ' + this.fundBal + '/10');
+    if (this.mods.equity) chips.push('股权 ' + this.equityBal + ' 股');
+    if (this.curses.length) chips.push('「' + this.curses[0].name + '」剩 ' + this.curses[0].left + ' 杯');
+    if (this.redoLeft > 0) chips.push('悔棋 ×' + this.redoLeft);
+    if (chips.length) {
+      ctx.font = Math.round(this.H * 0.015) + 'px sans-serif';
+      ctx.fillStyle = PAL.MUTED;
+      ctx.textAlign = 'center';
+      ctx.fillText(chips.join(' · '), this.W / 2, dy + this.H * 0.208);
     }
   };
 
@@ -1743,6 +2035,33 @@
     ctx.font = Math.round(H * 0.014) + 'px sans-serif';
     ctx.fillStyle = PAL.MUTED;
     ctx.fillText(locked ? '请稍候…' : '点击卡片做出选择', W / 2, py + ph - H * 0.022);
+  };
+
+  // ---------------- 悔棋面板（重来一杯） ----------------
+  Game.prototype.drawLastChance = function () {
+    var ctx = this.ctx, W = this.W, H = this.H;
+    ctx.fillStyle = 'rgba(43,42,38,0.45)';
+    ctx.fillRect(0, 0, W, H);
+    var pw = W * 0.80, ph = H * 0.32, px = (W - pw) / 2, py = H * 0.29;
+    ctx.fillStyle = PAL.CARD;
+    this.roundRect(px, py, pw, ph, 20);
+    ctx.fill();
+    ctx.strokeStyle = PAL.TRACK; ctx.lineWidth = 3; ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = PAL.INK;
+    ctx.font = 'bold ' + Math.round(H * 0.034) + 'px sans-serif';
+    ctx.fillText(this.failReason || '这杯没倒好', W / 2, py + ph * 0.22);
+    ctx.font = Math.round(H * 0.019) + 'px sans-serif';
+    ctx.fillStyle = PAL.MUTED;
+    ctx.fillText('人生中场，可以重来这一杯（剩 ' + this.redoLeft + ' 次）', W / 2, py + ph * 0.38);
+
+    var bw = pw * 0.72, bh = H * 0.056, bx = (W - bw) / 2;
+    var b1 = { key: 'redo', x: bx, y: py + ph * 0.50, w: bw, h: bh };
+    var b2 = { key: 'giveup', x: bx, y: py + ph * 0.50 + bh + H * 0.018, w: bw, h: bh };
+    this.lastChanceRects = [b1, b2];
+    this.drawCapsule(b1.x, b1.y, b1.w, b1.h, PAL.YEL, '重来一杯');
+    this.drawCapsule(b2.x, b2.y, b2.w, b2.h, PAL.CARD_DIM, '接受结局');
   };
 
   // ---------------- 「已做选择」按钮 + 可滑动列表面板 ----------------

@@ -68,10 +68,10 @@ assert.strictEqual(game.score, 0, '重开后分数应清零');
 assert.strictEqual(game.drink.name, '牛奶', '重开后第一杯应为牛奶');
 console.log('失败重开回到 0 段倒奶 OK');
 
-// 2. 主界面段位跟随历史最高分（岁月回甘 500 分）；岁月回甘回到倒奶杯池（人生闭环）
-storage = { best: '500' };
+// 2. 主界面段位跟随历史最高分（岁月回甘 700 分）；岁月回甘回到倒奶杯池（人生闭环）
+storage = { best: '700' };
 game = new Game(makeEnv(storage));
-assert.strictEqual(game.tierIdx, 6, '历史最高 500 分应显示岁月回甘');
+assert.strictEqual(game.tierIdx, 6, '历史最高 700 分应显示岁月回甘');
 game.newRound();
 assert.strictEqual(game.drink.name, '温奶', '岁月回甘回到奶（人生闭环）');
 const seen = new Set();
@@ -107,9 +107,9 @@ assert.strictEqual(Cups.rankFor(4).label, '人类幼崽');
 assert.strictEqual(Cups.rankFor(9).label, '人类幼崽');
 assert.strictEqual(Cups.rankFor(45).label, '未来可期'); // 麦芽段不分阶（门槛 40）
 assert.strictEqual(Cups.rankFor(90).label, '职场新人·初入');
-assert.strictEqual(Cups.rankFor(105).label, '职场新人·上手');
-assert.strictEqual(Cups.rankFor(120).label, '职场新人·转正');
-assert.strictEqual(Cups.rankFor(400).label, '岁月回甘·圆满');
+assert.strictEqual(Cups.rankFor(140).label, '职场新人·上手');
+assert.strictEqual(Cups.rankFor(190).label, '职场新人·转正');
+assert.strictEqual(Cups.rankFor(880).label, '岁月回甘·圆满');
 assert.strictEqual(Cups.rankFor(999).label, '岁月回甘·圆满');
 console.log('段位·阶 rankFor OK');
 
