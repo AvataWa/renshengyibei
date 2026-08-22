@@ -525,12 +525,13 @@
       // GM 入口（仅本地预览）：2.5 秒内连点 6 下「历史最高」行，展开跳段面板
       if (this.gmAllowed) {
         var gy = this.H * 0.755;
-        if (y >= gy - this.H * 0.02 && y <= gy + this.H * 0.025 && x >= this.W * 0.15 && x <= this.W * 0.85) {
+        if (y >= gy - this.H * 0.035 && y <= gy + this.H * 0.045 && x >= 0 && x <= this.W) {
           if (this.time - this._gmLastT > 2.5) this._gmTaps = 0;
           this._gmLastT = this.time;
           this._gmTaps++;
           this.sfx('tap');
           if (this._gmTaps >= 6) { this._gmTaps = 0; this.gmOpen = true; }
+          else this.toast('GM ' + this._gmTaps + '/6'); // 点击反馈，确认命中
           return;
         }
       }
