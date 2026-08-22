@@ -27,6 +27,9 @@
     var dpr = sysInfo.pixelRatio || 1;
     // 安全区顶部（刘海/灵动岛高度，逻辑像素）：局内顶部 UI 让位用
     var safeTop = (sysInfo.safeArea && typeof sysInfo.safeArea.top === 'number') ? sysInfo.safeArea.top : 0;
+    // 安全区底部（手势导航条高度）：底部边缘按压保护用
+    var safeBottom = (sysInfo.safeArea && typeof sysInfo.safeArea.bottom === 'number')
+      ? Math.max(0, sysInfo.windowHeight - sysInfo.safeArea.bottom) : 0;
 
     // 微信：开启右上角分享菜单 + 默认转发卡片 + 朋友圈分享
     if (isWx) {
@@ -129,6 +132,7 @@
       W: W,
       H: H,
       safeTop: safeTop,
+      safeBottom: safeBottom,
       assets: assets,
       pose: pose,
       onTouchStart: isWx

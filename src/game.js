@@ -621,6 +621,10 @@
       }
       // 策划案：每次挑战只识别第一次按压
       if (this.phase === 'aim' && !this.usedPress) {
+        // 手势导航保护：从屏幕上下边缘起笔的按压视为系统手势（底部上滑切进程/顶部下滑通知栏），不触发倒水
+        var edgeB = Math.max(this.H * 0.045, (this.env.safeBottom || 0) + 8);
+        var edgeT = this.H * 0.028;
+        if (y > this.H - edgeB || y < edgeT) return;
         this.usedPress = true;
         this.pressing = true;
         this.pressStart = this.time;   // 误触保护计时起点

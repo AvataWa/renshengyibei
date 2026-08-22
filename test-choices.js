@@ -468,5 +468,18 @@ console.log('12. GM 跳段 + 无尽提速');
   ok(p200 > p100 * 1.15, '200 分应明显快于 100 分（' + p100.toFixed(3) + ' → ' + p200.toFixed(3) + '）');
 }
 
+// 13. 手势导航边缘保护：屏幕上下边缘起笔的按压不触发倒水（底部上滑切进程/顶部下滑通知栏）
+console.log('13. 手势边缘保护');
+{
+  const g = makeGame();
+  g.pendingChoice = null; g.choiceIsOpening = false; g.phase = 'aim';
+  g.onPress(187, 660); // 底部手势区（保护带内，y > H-30）
+  ok(g.phase === 'aim' && !g.usedPress, '底部边缘按压不应触发倒水，相位 ' + g.phase);
+  g.onPress(187, 5); // 顶部手势区（保护带内，y < 18.7）
+  ok(g.phase === 'aim' && !g.usedPress, '顶部边缘按压不应触发倒水，相位 ' + g.phase);
+  g.onPress(187, 300); // 屏幕中部正常触发
+  ok(g.phase === 'press' && g.usedPress, '中部按压应正常倒水，相位 ' + g.phase);
+}
+
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);
 process.exit(failCount ? 1 : 0);
