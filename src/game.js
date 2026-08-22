@@ -534,6 +534,8 @@
           else this.toast('GM ' + this._gmTaps + '/6'); // 点击反馈，确认命中
           return;
         }
+        // 调试：未命中的主界面点按显示坐标（便于校准热区）
+        this.toast('tap ' + Math.round(x) + ',' + Math.round(y) + '（目标行 y≈' + Math.round(gy) + '）');
       }
       for (var i = 0; i < this.menuButtons.length; i++) {
         var b = this.menuButtons[i];
