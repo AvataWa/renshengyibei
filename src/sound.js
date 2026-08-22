@@ -54,17 +54,23 @@
       } catch (e) {}
     }
 
-    // 倒水开始：起音 + 水流循环
+    // 倒水开始：起音 + 循环（低音量）
     function startPour() {
       if (muted) return;
       try {
-        play('pour_start', { volume: 0.8 });
+        play('pour_start', { volume: 0.5 });
         if (!pourLoop) pourLoop = mk('pour_loop');
         pourLoop.loop = true;
-        pourLoop.volume = 0.7;
+        pourLoop.volume = 0.42;
+        setRate(pourLoop, 0.85);
         if (isWx) { pourLoop.stop(); pourLoop.play(); }
         else { pourLoop.currentTime = 0; var p = pourLoop.play(); if (p && p.catch) p.catch(function () {}); }
       } catch (e) {}
+    }
+
+    // 倒水循环音调：随液面升高而升调（0.85 → ~1.4），听觉上可感知进度
+    function setPourPitch(rate) {
+      try { if (pourLoop) setRate(pourLoop, rate); } catch (e) {}
     }
 
     // 倒水结束：停循环 + 收尾音
@@ -72,7 +78,7 @@
       try {
         if (pourLoop) { if (isWx) pourLoop.stop(); else pourLoop.pause(); }
       } catch (e) {}
-      play('pour_end', { volume: 0.7 });
+      play('pour_end', { volume: 0.5 });
     }
 
     // 背景音乐（低音量循环；浏览器需在首次用户手势后启动）
@@ -110,6 +116,7 @@
       play: play,
       startPour: startPour,
       stopPour: stopPour,
+      setPourPitch: setPourPitch,
       startBgm: startBgm,
       toggleMute: toggleMute,
       isMuted: function () { return muted; },

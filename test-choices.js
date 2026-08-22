@@ -34,6 +34,7 @@ function makeSoundMock() {
     play: (n) => calls.push(n),
     startPour: () => calls.push('startPour'),
     stopPour: () => calls.push('stopPour'),
+    setPourPitch: () => {},
     startBgm: () => calls.push('startBgm'),
     toggleMute: () => false,
     isMuted: () => false

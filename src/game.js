@@ -1162,6 +1162,8 @@
       var df = baseRate * ramp * rateMul * (1 + T.RATE_ACCEL * tiltFrac) * wr * wr * dt;
       this.level += df;
       this.poured += df;
+      // 倒水音调随液面升高（0.85 → ~1.4）：玩家能"听"出快满了
+      if (this.sound && this._pourSndOn) this.sound.setPourPitch(0.85 + Math.min(1, this.level) * 0.55);
       if (!this._splashed && this.level > 0.02) { this._splashed = true; this.sfx('splash', { volume: 0.5 }); } // 水流首次触及液面
       this.spawnSplash();
       this.spawnSpoutMist();
