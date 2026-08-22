@@ -8,7 +8,7 @@
   var isNode = (typeof module !== 'undefined' && module.exports);
 
   // 一次性音效清单（assets/audio/<name>.mp3）
-  var ONESHOT = ['pour_end', 'splash', 'success', 'perfect', 'fail', 'lucky', 'tap'];
+  var ONESHOT = ['pour_end', 'success', 'perfect', 'fail', 'lucky', 'tap'];
 
   function create(opts) {
     var isWx = opts.isWx;
@@ -39,6 +39,11 @@
       } catch (e) {}
     }
 
+    // 音量赋值：微信端透传（支持 >1 增益）；浏览器 Audio 限制 [0,1]，超出钳到 1
+    function setVol(a, v) {
+      try { a.volume = isWx ? v : Math.min(1, v); } catch (e) {}
+    }
+
     // 播放一次性音效；rate 用于完美连击变调（浏览器/微信基础库≥2.11 支持）
     function play(name, o) {
       if (muted) return;
@@ -47,20 +52,20 @@
         var a = cache[name];
         if (!a) { a = mk(name); cache[name] = a; }
         a.loop = false;
-        a.volume = o.volume != null ? o.volume : 1;
+        setVol(a, o.volume != null ? o.volume : 1);
         setRate(a, o.rate);
         if (isWx) { a.stop(); a.play(); }
         else { a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () {}); }
       } catch (e) {}
     }
 
-    // 倒水开始：直接进钢琴循环（无起音），音调随液面爬升
+    // 倒水开始：直接进陶瓷杯注水循环（无起音），音调随液面爬升
     function startPour() {
       if (muted) return;
       try {
         if (!pourLoop) pourLoop = mk('pour_loop');
         pourLoop.loop = true;
-        pourLoop.volume = 0.55;
+        setVol(pourLoop, 1.5);
         setRate(pourLoop, 0.8);
         if (isWx) { pourLoop.stop(); pourLoop.play(); }
         else { pourLoop.currentTime = 0; var p = pourLoop.play(); if (p && p.catch) p.catch(function () {}); }
@@ -77,7 +82,7 @@
       try {
         if (pourLoop) { if (isWx) pourLoop.stop(); else pourLoop.pause(); }
       } catch (e) {}
-      play('pour_end', { volume: 0.5 });
+      play('pour_end', { volume: 1 });
     }
 
     // 背景音乐（低音量循环；浏览器需在首次用户手势后启动）
@@ -87,7 +92,7 @@
       try {
         if (!bgm) bgm = mk('bgm');
         bgm.loop = true;
-        bgm.volume = 0.12; // 压低背景音，突出倒水音调爬升与判定音
+        setVol(bgm, 0.08); // 压低背景音，突出倒水音调爬升与判定音
         if (isWx) bgm.play();
         else { var p = bgm.play(); if (p && p.catch) p.catch(function () { bgmStarted = false; }); }
       } catch (e) { bgmStarted = false; }

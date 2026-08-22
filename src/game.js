@@ -810,7 +810,6 @@
     this.level = (this.mods.residue > 0 && this.prevLevel > 0)
       ? Math.min(0.95, this.prevLevel * this.mods.residue) : 0;
     this.poured = 0;
-    this._splashed = this.level > 0.02; // 残留水位的杯子不再播首次触水音
     this.angle = 0;
     this.pressing = false;
     this.usedPress = false;
@@ -953,8 +952,8 @@
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     // 结果音效：升段 shimmer 最优先；完美按连击数逐级升调；普通完成温和叮
-    if (didTierUp) this.sfx('lucky', { volume: 0.9 });
-    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(1.5, 1 + 0.12 * (this.perfectStreak - 1)) });
+    if (didTierUp) this.sfx('lucky', { volume: 0.6 });
+    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(1.5, 1 + 0.12 * (this.perfectStreak - 1)), volume: 3 });
     else this.sfx('success', { rate: 1.2, volume: 0.9 }); // 升调版叮，听感更亮
     this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
@@ -977,7 +976,7 @@
     if (m.failProtect > 0) {
       m.failProtect--;
       this.toast('失败保护：原地续命（剩 ' + m.failProtect + ' 次）');
-      this.sfx('lucky', { volume: 0.8 });
+      this.sfx('lucky', { volume: 0.6 });
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -989,7 +988,7 @@
     if (m.fund && this.fundBal >= 10) {
       this.fundBal -= 10;
       this.toast('退路基金 −10：替你挡下这次失败');
-      this.sfx('lucky', { volume: 0.8 });
+      this.sfx('lucky', { volume: 0.6 });
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -1002,7 +1001,7 @@
       this.graceArmed = false;
       this.graceTier = -1;
       this.toast('跳槽窗口期：第一杯有惊无险');
-      this.sfx('lucky', { volume: 0.8 });
+      this.sfx('lucky', { volume: 0.6 });
       this.win(1, '有惊无险！');
       return;
     }
@@ -1010,7 +1009,7 @@
     if (this.redoLeft > 0) {
       this.failReason = reason;
       this.phase = 'lastChance';
-      this.sfx('fail', { volume: 0.7 });
+      this.sfx('fail', { volume: 0.8 });
       if (this.vibrateOn) this.env.vibrate();
       return;
     }
@@ -1028,7 +1027,7 @@
     }
     this.phase = 'failed';
     this.phaseTimer = 0.9;
-    this.sfx('fail');
+    this.sfx('fail', { volume: 0.8 });
     if (this.vibrateOn) this.env.vibrate();
     if (this.score > this.best) {
       this.best = this.score;
@@ -1164,7 +1163,6 @@
       this.poured += df;
       // 倒水音调随液面大幅爬升（0.8 → 1.8）：玩家能"听"出快满了
       if (this.sound && this._pourSndOn) this.sound.setPourPitch(0.8 + Math.min(1, this.level) * 1.0);
-      if (!this._splashed && this.level > 0.02) { this._splashed = true; this.sfx('splash', { volume: 0.5 }); } // 水流首次触及液面
       this.spawnSplash();
       this.spawnSpoutMist();
       if (this.level >= 1) { this.level = 1; this.fail('水溢出来啦'); }
