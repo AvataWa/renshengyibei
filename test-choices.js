@@ -20,7 +20,7 @@ function makeGame() {
     ctx: mockCtx(), W: 375, H: 667,
     onTouchStart: () => {}, onTouchEnd: () => {},
     getStorage: () => '', setStorage: () => {}, vibrate: () => {}, share: () => {},
-    sound: makeSoundMock()
+    sound: makeSoundMock(), gmAllowed: true
   };
   const g = new Game(env);
   g.startGame();
@@ -431,6 +431,41 @@ console.log('11. 声音接线');
   const g5 = makeGame();
   g5.applyChoice(Choices.POOL[0]); // 选定人生选项 → 确认音
   ok(g5.sound.calls.includes('tap'), '选定选项应播放确认音');
+}
+
+// 12. GM 跳段面板 + 无尽提速防线
+console.log('12. GM 跳段 + 无尽提速');
+{
+  const g = makeGame();
+  g.state = 'menu'; // 回到主界面
+  ok(g.gmAllowed === true, '本地预览应允许 GM');
+  // 连点 6 下「历史最高」行
+  for (let i = 0; i < 6; i++) g.onPress(g.W / 2, g.H * 0.755);
+  ok(g.gmOpen === true, '连点 6 下历史最高应展开 GM 面板');
+  step(g, 0.05); // 渲染出按钮热区
+  ok(g._gmRects && g._gmRects.items.length > 0, 'GM 面板应有跳段按钮');
+  // 全部按钮覆盖 7 段：无分阶 3 段 × 1 键 + 分阶 4 段 × 3 键 = 15
+  ok(g._gmRects.items.length === 15, '应有 15 个跳段按钮，实际 ' + g._gmRects.items.length);
+  // 选 职场中坚·扛事（250 分）
+  const target = g._gmRects.items.find(it => it.score === 250);
+  ok(!!target, '应有 250 分跳段按钮');
+  g.onPress(target.x + 2, target.y + 2);
+  ok(g.state === 'play' && g.score === 250 && g.tierIdx === 4, '应跳到 250 分/段位 4，实际 ' + g.score + '/' + g.tierIdx);
+  ok(g.phase === 'aim' && !g.pendingChoice, 'GM 跳段不应弹开局天赋，相位 ' + g.phase);
+  ok(g.tier.drinkName === Cups.TIERS[4].drinkName, '饮品应切到目标段位');
+
+  // 无尽提速：流速杯数封顶后，每 50 分 ×1.2（复合）
+  function pourAmount(score) {
+    const g2 = makeGame();
+    g2.round = 40; // 超过杯数封顶（0.5 / 0.015 ≈ 34 杯）
+    g2.score = score;
+    g2.onPress(100, 100);
+    step(g2, 1.1); // 倾过阈值后净倒水约 0.5s
+    return g2.poured;
+  }
+  const p0 = pourAmount(0), p100 = pourAmount(100), p200 = pourAmount(200);
+  ok(p100 > p0 * 1.15, '100 分应明显快于 0 分（' + p0.toFixed(3) + ' → ' + p100.toFixed(3) + '）');
+  ok(p200 > p100 * 1.15, '200 分应明显快于 100 分（' + p100.toFixed(3) + ' → ' + p200.toFixed(3) + '）');
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);

@@ -176,6 +176,7 @@
       vibrate: isWx
         ? function () { try { wx.vibrateShort({ type: 'medium' }); } catch (e) {} }
         : function () { try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {} },
+      gmAllowed: !isWx, // GM 跳段面板仅本地预览开放
       share: isWx
         ? function (title) { try { wx.shareAppMessage({ title: title, imageUrl: 'assets/share.jpg' }); } catch (e) {} }
         : function (title) { console.log('[分享]', title); },

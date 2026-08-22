@@ -24,7 +24,9 @@
     POUR_RATE: 0.338,      // 出水速度系数（用户要求提速 30%：0.26 × 1.3）
     RATE_ACCEL: 0.8,       // 流速随倾角的加速幅度：rate = POUR_RATE * (1 + RATE_ACCEL * tiltFrac)
     RATE_RAMP: 0.015,      // 单局递增难度：每成功一杯流速 +1.5%（封顶 +50%）
-    RATE_RAMP_CAP: 0.5
+    RATE_RAMP_CAP: 0.5,
+    OVER_SPEED_STEP: 50,   // 无尽防线：流速封顶后，每 50 分再提速一档
+    OVER_SPEED_MUL: 1.2    // 每档 ×1.2（复合），避免玩家无限玩下去
   };
 
   // 全局调色板：奶油米底 + 墨黑 + 卡片白 + 强调黄（参考智能家居风）
@@ -151,6 +153,12 @@
     this._noIncRound = false; // 开局天赋选完不跳杯标记
     this.hintDelay = 0;       // 操作提示延时：开局立即显示，倒完一杯后 1.5 秒无按压再显示
     this._firstAim = false;   // 本局首次进入待倒（开局提示不延时）
+    // GM 调试（仅本地预览开放，env.gmAllowed）：主界面连点 6 下「历史最高」展开跳段面板
+    this.gmAllowed = !!(this.env && this.env.gmAllowed);
+    this.gmOpen = false;
+    this._gmTaps = 0;
+    this._gmLastT = -9;
+    this._gmRects = null;
     // ── v2 新机制状态 ──
     this.curses = [];         // 先苦后甜：{left, pen, reward, name}
     this.roundStartT = 0;     // 本杯开始时刻（区域脉冲/衰减用）
@@ -512,7 +520,20 @@
   Game.prototype.onPress = function (x, y) {
     if (this.sound) this.sound.startBgm(); // 首次触摸解锁背景音乐（浏览器自动播放策略）
     if (this.state === 'menu') {
+      if (this.gmOpen) { this.handleGmTap(x, y); return; }
       if (this.overlay) { this.handleOverlayTap(x, y); return; }
+      // GM 入口（仅本地预览）：2.5 秒内连点 6 下「历史最高」行，展开跳段面板
+      if (this.gmAllowed) {
+        var gy = this.H * 0.755;
+        if (y >= gy - this.H * 0.02 && y <= gy + this.H * 0.025 && x >= this.W * 0.15 && x <= this.W * 0.85) {
+          if (this.time - this._gmLastT > 2.5) this._gmTaps = 0;
+          this._gmLastT = this.time;
+          this._gmTaps++;
+          this.sfx('tap');
+          if (this._gmTaps >= 6) { this._gmTaps = 0; this.gmOpen = true; }
+          return;
+        }
+      }
       for (var i = 0; i < this.menuButtons.length; i++) {
         var b = this.menuButtons[i];
         if (Math.hypot(x - b.x, y - b.y) <= b.r + 6) { this.sfx('tap'); this.handleMenuButton(b.key); return; }
@@ -693,9 +714,11 @@
   };
 
   // ---------------- 流程 ----------------
-  Game.prototype.startGame = function () {
+  // gmScore：GM 面板跳段时传入目标分数门槛，直接从对应段位/阶开始（跳过开局天赋）
+  Game.prototype.startGame = function (gmScore) {
     this.state = 'play';
     this.overlay = null;
+    this.gmOpen = false;
     this.score = 0;
     this.round = 0;
     this.newRecord = false;
@@ -706,10 +729,16 @@
     this.easyTierFor = -1;
     this.nextCupPre = null;
     this._firstAim = true;     // 开局第一杯：操作提示立即显示
+    var gmJump = false;
+    if (typeof gmScore === 'number' && gmScore > 0) {
+      this.score = gmScore;
+      this.tierIdx = Cups.rankFor(gmScore).tierIdx;
+      gmJump = true;
+    }
     if (this.best > 0 && this.env.uploadScore) this.env.uploadScore(this.best); // 兜底上报历史最高（幂等）
     this.newRound();
     // 开局天赋三选一（出生前的选择）：历史最高分 ≥20 的玩家才解锁；只从通用选项抽，选完不跳杯
-    if (this.best >= 20) {
+    if (this.best >= 20 && !gmJump) {
       this.choiceIsOpening = true;
       this.pendingChoice = this.rollChoices(true);
       if (this.pendingChoice) {
@@ -1138,6 +1167,11 @@
       var m = this.mods;
       var tiltFrac = (this.angle - T.POUR_THRESHOLD) / (T.MAX_TILT - T.POUR_THRESHOLD);
       var ramp = 1 + Math.min(this.round - 1, T.RATE_RAMP_CAP / T.RATE_RAMP) * T.RATE_RAMP;
+      // 无尽防线：流速达杯数封顶后，每 50 分再 ×1.2（复合提速），避免无限刷分
+      if (ramp >= 1 + T.RATE_RAMP_CAP - 1e-9) {
+        var overN = Math.floor(this.score / T.OVER_SPEED_STEP);
+        if (overN > 0) ramp *= Math.pow(T.OVER_SPEED_MUL, overN);
+      }
       var wNow = Math.max(0.12, this.cup.profile(Math.min(this.level, 0.999)));
       var wr = this.cupAvgW / wNow;
       var baseRate = (this.tier && this.tier.pourRate) || T.POUR_RATE;
@@ -2473,6 +2507,71 @@
     }
 
     if (this.overlay) this.drawOverlay();
+    if (this.gmOpen) this.drawGm();
+  };
+
+  // ---------------- GM 调试面板（仅本地预览）：跳段测试 ----------------
+  Game.prototype.drawGm = function () {
+    var ctx = this.ctx, W = this.W, H = this.H;
+    ctx.fillStyle = 'rgba(43,42,38,0.55)';
+    ctx.fillRect(0, 0, W, H);
+    var px = W * 0.08, py = H * 0.14, pw = W * 0.84, ph = H * 0.68;
+    ctx.fillStyle = PAL.CARD;
+    this.roundRect(px, py, pw, ph, 18);
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = PAL.INK;
+    ctx.font = 'bold ' + Math.round(H * 0.024) + 'px sans-serif';
+    ctx.fillText('GM · 选择起始阶段', px + pw / 2, py + H * 0.045);
+
+    var items = [];
+    var rowY = py + H * 0.085, rowH = H * 0.072;
+    for (var i = 0; i < Cups.TIERS.length; i++) {
+      var t = Cups.TIERS[i];
+      // 左：段位名 + 门槛分
+      ctx.textAlign = 'left';
+      ctx.fillStyle = PAL.INK;
+      ctx.font = 'bold ' + Math.round(H * 0.018) + 'px sans-serif';
+      ctx.fillText(t.name, px + W * 0.04, rowY + rowH * 0.42);
+      ctx.font = Math.round(H * 0.013) + 'px sans-serif';
+      ctx.fillStyle = PAL.MUTED;
+      ctx.fillText(t.score + ' 分起 · ' + t.drinkName, px + W * 0.04, rowY + rowH * 0.78);
+      // 右：阶段按钮（无分阶的段位只有 1 个）
+      var stages = t.steps ? t.steps.map(function (s, k) { return { label: t.stages[k], score: s }; })
+        : [{ label: '开始', score: t.score }];
+      var bx = px + pw - W * 0.04, bw = W * 0.128, gap = W * 0.012;
+      for (var s = stages.length - 1; s >= 0; s--) {
+        var bx0 = bx - bw;
+        this.drawCapsule(bx0, rowY + rowH * 0.16, bw, rowH * 0.6, PAL.YEL, stages[s].label, H * 0.014);
+        items.push({ x: bx0, y: rowY + rowH * 0.16, w: bw, h: rowH * 0.6, score: stages[s].score });
+        bx = bx0 - gap;
+      }
+      rowY += rowH;
+    }
+    // 关闭
+    var cw = W * 0.2, ch = H * 0.045;
+    var close = { x: px + (pw - cw) / 2, y: py + ph - ch - H * 0.02, w: cw, h: ch };
+    this.drawCapsule(close.x, close.y, cw, ch, PAL.INK, '关 闭', H * 0.02);
+    this._gmRects = { close: close, items: items };
+    ctx.textAlign = 'center';
+  };
+
+  Game.prototype.handleGmTap = function (x, y) {
+    var R = this._gmRects;
+    if (!R) return;
+    if (x >= R.close.x && x <= R.close.x + R.close.w && y >= R.close.y && y <= R.close.y + R.close.h) {
+      this.gmOpen = false;
+      this.sfx('tap');
+      return;
+    }
+    for (var i = 0; i < R.items.length; i++) {
+      var it = R.items[i];
+      if (x >= it.x && x <= it.x + it.w && y >= it.y && y <= it.y + it.h) {
+        this.sfx('tap');
+        this.startGame(it.score); // 从所选阶段开局（跳过开局天赋）
+        return;
+      }
+    }
   };
 
   Game.prototype.drawMenuDeco = function () {
