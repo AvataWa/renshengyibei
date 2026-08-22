@@ -409,9 +409,11 @@ console.log('11. 声音接线');
 {
   const g = makeGame();
   const calls = g.sound.calls;
-  g.onPress(100, 100); // 开始倒水
+  g.onPress(100, 100); // 按下（瓶子开始倾斜，尚未出水）
   ok(calls.includes('startBgm'), '首次触摸应解锁背景音乐');
-  ok(calls.includes('startPour'), '按压开始应播放倒水起音+循环');
+  ok(!calls.includes('startPour'), '按下未出水时不应响水声');
+  step(g, 0.8); // 瓶子倾过出水阈值（TILT_SPEED 0.35 rad/s，约需 0.57s）
+  ok(calls.includes('startPour'), '真正出水后才播放倒水起音+循环');
   g.onRelease();
   ok(calls.includes('stopPour'), '松手应停循环+收尾音');
 

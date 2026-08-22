@@ -488,7 +488,8 @@
   Game.prototype.onInterrupt = function () {
     if (this.state !== 'play' || this.phase !== 'press') return;
     this.pressing = false;
-    if (this.sound) this.sound.stopPour();
+    if (this._pourSndOn && this.sound) this.sound.stopPour();
+    this._pourSndOn = false;
     if (this.reverseCups > 0) this.angle = 0; // 反转自倒模式：同时收角度暂停出水
     this.usedPress = false;
     this.phase = 'aim';
@@ -576,7 +577,8 @@
         if (!this.reverseLock && this.level > 0.01) {
           this.reverseLock = true;
           this.pressing = false;
-          if (this.sound) this.sound.stopPour();
+          if (this._pourSndOn && this.sound) this.sound.stopPour();
+          this._pourSndOn = false;
           this.phase = 'settle';
           this.phaseTimer = 0.35;
         }
@@ -595,7 +597,7 @@
         this.pressing = true;
         this.pressStart = this.time;   // 误触保护计时起点
         this.phase = 'press';
-        if (this.sound) this.sound.startPour(); // 倒水起音 + 水流循环
+        this._pourSndOn = false;       // 水声等真正出水那一帧再响（见 update 倒水块）
       }
       return;
     }
@@ -617,7 +619,8 @@
     if (this.state === 'play' && this.reverseCups > 0 && !this.reverseLock) return;
     if (this.state === 'play' && this.phase === 'press') {
       this.pressing = false;
-      if (this.sound) this.sound.stopPour(); // 停水流循环 + 收尾音
+      if (this._pourSndOn && this.sound) this.sound.stopPour(); // 停水流循环 + 收尾音（仅在真正出过水时）
+      this._pourSndOn = false;
       // 误触保护：按压不足 0.06s 视为误碰，撤销本次按压（高压考核选项可关闭保护）
       if (this.mods.tapProtect && this.time - this.pressStart < 0.06) {
         this.usedPress = false;
