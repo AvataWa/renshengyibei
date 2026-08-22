@@ -8,7 +8,7 @@
   var isNode = (typeof module !== 'undefined' && module.exports);
 
   // 一次性音效清单（assets/audio/<name>.mp3）
-  var ONESHOT = ['pour_end', 'success', 'perfect', 'fail', 'lucky', 'tap'];
+  var ONESHOT = ['success', 'perfect', 'fail', 'lucky', 'tap'];
 
   function create(opts) {
     var isWx = opts.isWx;
@@ -77,12 +77,11 @@
       try { if (pourLoop) setRate(pourLoop, rate); } catch (e) {}
     }
 
-    // 倒水结束：停循环 + 收尾音
+    // 倒水结束：直接停循环（无收尾音）
     function stopPour() {
       try {
         if (pourLoop) { if (isWx) pourLoop.stop(); else pourLoop.pause(); }
       } catch (e) {}
-      play('pour_end', { volume: 1 });
     }
 
     // 背景音乐（低音量循环；浏览器需在首次用户手势后启动）

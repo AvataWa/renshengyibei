@@ -952,9 +952,9 @@
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     // 结果音效：升段 shimmer 最优先；完美按连击数逐级升调；普通完成温和叮
-    if (didTierUp) this.sfx('lucky', { volume: 0.6 });
-    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(1.5, 1 + 0.12 * (this.perfectStreak - 1)), volume: 3 });
-    else this.sfx('success', { rate: 1.2, volume: 0.9 }); // 升调版叮，听感更亮
+    if (didTierUp) this.sfx('lucky', { volume: 0.36 });
+    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(1.5, 1 + 0.12 * (this.perfectStreak - 1)), volume: 3.9 });
+    else this.sfx('success', { rate: 1.2, volume: 0.63 }); // 升调版叮，听感更亮
     this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
     // 先原样停留看清结果（最后 0.18s 淡出）；有人生路口待选时多停 0.5s，让阶段提升的放大回弹/浮字先展示完
@@ -976,7 +976,7 @@
     if (m.failProtect > 0) {
       m.failProtect--;
       this.toast('失败保护：原地续命（剩 ' + m.failProtect + ' 次）');
-      this.sfx('lucky', { volume: 0.6 });
+      this.sfx('lucky', { volume: 0.36 });
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -988,7 +988,7 @@
     if (m.fund && this.fundBal >= 10) {
       this.fundBal -= 10;
       this.toast('退路基金 −10：替你挡下这次失败');
-      this.sfx('lucky', { volume: 0.6 });
+      this.sfx('lucky', { volume: 0.36 });
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -1001,7 +1001,7 @@
       this.graceArmed = false;
       this.graceTier = -1;
       this.toast('跳槽窗口期：第一杯有惊无险');
-      this.sfx('lucky', { volume: 0.6 });
+      this.sfx('lucky', { volume: 0.36 });
       this.win(1, '有惊无险！');
       return;
     }
