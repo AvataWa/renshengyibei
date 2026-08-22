@@ -141,7 +141,8 @@
     // 人间清醒 · 茶
     { id: 'B27', cat: 'B', name: '回甘', desc: '每次完美后，下一杯前 1 秒出水 −20%', flavor: '回甘来时，急不得。', tiers: [5], fx: { afterPerfectSlow: { dur: 1, scale: 0.8 } } },
     { id: 'B28', cat: 'B', name: '茶宠', desc: '连续 5 杯不失败养成茶宠：之后每杯 +1 分', flavor: '茶宠是泡出来的，人是熬出来的。', tiers: [5], fx: { teapot: { need: 5, bonus: 1 } } },
-    { id: 'D23', cat: 'D', name: '茶气通透', desc: '此后完美区宽度不再被任何效果缩小（状态免疫）', flavor: '一通百通，百毒不侵。', tiers: [5], fx: { perfectLockWidth: true } }
+    { id: 'D23', cat: 'D', name: '茶气通透', desc: '此后完美区宽度不再被任何效果缩小（状态免疫）', flavor: '一通百通，百毒不侵。', tiers: [5], fx: { perfectLockWidth: true } },
+    { id: 'D24', cat: 'D', name: '饮的文化', desc: '每种饮品出现比完美区更小的文化契合区，达成则完美 ×2 分', flavor: '浅茶满杯，各有分寸。', tiers: null, fx: { cultureZones: true } }
   ];
 
   // ────────── 段位效果池（当前池内无段位卡，机制保留在 game.js，随时可挂回卡片） ──────────

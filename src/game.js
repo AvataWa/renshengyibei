@@ -124,7 +124,7 @@
       nextCupBoost: 0, fullRite: 0, streakMin3: 0, sameStreak3: 0,
       foamCup: false, toastTarget: false, bank: null, equity: false,
       fund: false, afterPerfectSlow: null, teapot: null,
-      perfectLockWidth: false, resume: false
+      perfectLockWidth: false, resume: false, cultureZones: false
     };
     // 计数型效果（随杯数消耗）
     this.rushCups = 0;        // 极限冲刺
@@ -293,7 +293,7 @@
         case 'zoneRandom': case 'noCompleteZone': case 'overflowForgive': case 'comboNeverBreak':
         case 'cupPreview': case 'cupSimple3': case 'lockTier': case 'goldLines': case 'hideMarks':
         case 'zoneWander': case 'timeSlow': case 'bubbleBoost': case 'perfectDouble':
-        case 'invertCups': case 'sizeVariance': case 'comboZoneGrow':
+        case 'invertCups': case 'sizeVariance': case 'comboZoneGrow': case 'cultureZones':
           m[k] = true; break;
         case 'poolOverride': m.poolOverride = v; break;
         case 'poolOverrideCurrent': m.poolOverride = this.tierIdx; break;
@@ -868,7 +868,7 @@
     }
   };
 
-  Game.prototype.win = function (basePts, label) {
+  Game.prototype.win = function (basePts, label, cultureHit) {
     var m = this.mods;
     if (this.reverseCups > 0) this.reverseCups--; // 反转模式消耗一杯
     if (this.graceArmed) { this.graceArmed = false; this.graceTier = -1; } // 跳槽窗口期：新段第一杯已平安落地，免死消耗
@@ -880,10 +880,12 @@
       this.perfectStreak += sg2 ? Math.max(m.streakGain, 2) : m.streakGain; // 深夜改稿：一次计 2 连
       pts = 2 + Math.min(this.perfectStreak - 1, m.comboCap - 2) + m.comboBonus;
       if (m.perfectDouble || this.onlyPerfectCups > 0) pts *= 2; // 精准强迫症 / 孤注一掷
+      if (cultureHit) pts *= 2; // 饮的文化：契合区分数翻倍（与上述翻倍可叠加）
       if (m.foamCup) this.foamLayers++; // 挂杯：完美挂一层泡沫
       if (m.nextCupBoost > 1) this.boostLeft = 1.2; // 摇过的汽水：下一杯初速加成
       if (m.afterPerfectSlow) this.slowStartArm = true; // 回甘：下一杯前 1 秒减速
-      if (this.perfectStreak >= 2) label = this.perfectStreak + '连完美!';
+      if (cultureHit) label = label + (this.perfectStreak >= 2 ? ' · ' + this.perfectStreak + '连' : '');
+      else if (this.perfectStreak >= 2) label = this.perfectStreak + '连完美!';
       if (this.perfectStreak > this.bestStreakRun) this.bestStreakRun = this.perfectStreak;
     } else {
       // 断连判定：伯乐相马不断；私教课消耗连击保护
@@ -987,10 +989,10 @@
     }
     // 示意图：+N 绿色/橙色大字居中于杯上方，连击/评价黑色小字紧随其下
     var ptsY = this.cupTop - this.H * 0.10;
-    this.floats.push({ text: '+' + pts, x: this.W / 2, y: ptsY, life: 1.4, color: basePts === 2 ? '#2EA85C' : '#E0861A', size: 0.042 });
-    this.floats.push({ text: label, x: this.W / 2, y: ptsY + this.H * 0.042, life: 1.4, color: PAL.INK, size: 0.024 });
-    // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
-    if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
+    this.floats.push({ text: '+' + pts, x: this.W / 2, y: ptsY, life: 1.4, color: cultureHit ? '#B07A12' : (basePts === 2 ? '#2EA85C' : '#E0861A'), size: 0.042 });
+    this.floats.push({ text: label, x: this.W / 2, y: ptsY + this.H * 0.042, life: cultureHit ? 2 : 1.4, color: cultureHit ? '#B07A12' : PAL.INK, size: cultureHit ? 0.027 : 0.024 });
+    // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示；文化契合命中文案即文化说明，也不再叠
+    if (basePts === 2 && !cultureHit && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     // 结果音效：升段 shimmer 最优先；完美按连击数逐级升调；普通完成温和叮
     if (didTierUp) this.sfx('lucky');
     else if (basePts === 2) this.sfx('perfect', { rate: Math.min(AR.perfectCap || 1.5, 1 + (AR.perfectStep || 0.12) * (this.perfectStreak - 1)) });
@@ -1090,9 +1092,35 @@
     this.newRound();
   };
 
+  // 饮的文化：各饮品的文化契合水位（浅茶满杯的文化讲究），宽度 = 完美区 × 0.6，保证比完美区更小
+  // 文案注意备案合规：不含「酒」等敏感字
+  Game.prototype.cultureZone = function () {
+    if (!this.mods.cultureZones) return null;
+    var SPOT = {
+      0: { c: 0.86, text: '奶倒八分，不烫不洒' },
+      1: { c: 0.85, text: '气泡两分，快乐八分' },
+      2: { c: 0.89, text: '杯壁下流，泡沫刚好' },
+      3: { c: 0.32, text: '会喝的人，只倒三分' },
+      4: { c: 0.965, text: '满杯敬人，将溢未溢' },
+      5: { c: 0.69, text: '七分茶，三分情' },
+      6: { c: 0.86, text: '奶倒八分，不烫不洒' }
+    };
+    var spot = SPOT[this.tierIdx];
+    if (!spot) return null;
+    var z = this.effZones();
+    var half = (z.p[1] - z.p[0]) * 0.3;
+    var lo = spot.c - half, hi = spot.c + half;
+    if (lo < 0.1) { hi += 0.1 - lo; lo = 0.1; }
+    if (hi > 0.985) { lo -= hi - 0.985; hi = 0.985; }
+    return { zone: [lo, hi], text: spot.text };
+  };
+
   Game.prototype.judge = function () {
     var z = this.effZones(), f = this.level, m = this.mods;
     this.prevLevel = this.level; // 汽水洗杯：记下本杯最终水位
+    // 饮的文化：文化契合区最优先判定（比完美区更小，达成完美 ×2）
+    var cz = this.cultureZone();
+    if (cz && f >= cz.zone[0] && f <= cz.zone[1]) { this.win(2, cz.text, true); return; }
     if (f >= z.p[0] && f <= z.p[1]) { this.win(2, '完美!'); return; }
     // 无心插柳：轻微超完美线也算完美
     if (m.overflowToPerfect > 0 && f > z.p[1] && f <= z.p[1] + m.overflowToPerfect) { this.win(2, '完美!'); return; }
@@ -1493,6 +1521,17 @@
     band(0, 1, 'rgba(43,42,38,0.06)');            // 不合格区（整杯灰底）
     if (!this.mods.noCompleteZone) band(z.q[0], z.q[1], 'rgba(242,201,76,0.45)'); // 合格区（背水一战时关闭）
     band(z.p[0], z.p[1], 'rgba(190,222,150,0.80)'); // 完美区（柔和绿）
+    // 饮的文化：契合区（比完美区更小的金赭色窄带 + 上下描线）
+    var cz = this.cultureZone();
+    if (cz) {
+      band(cz.zone[0], cz.zone[1], 'rgba(176,122,18,0.50)');
+      ctx.strokeStyle = 'rgba(176,122,18,0.85)';
+      ctx.lineWidth = 1.5;
+      for (var czi = 0; czi < 2; czi++) {
+        var czt = cz.zone[czi], czw = this.halfW * cup.profile(czt) * 0.96, czy = this.baseY - czt * h;
+        ctx.beginPath(); ctx.moveTo(this.cx - czw, czy); ctx.lineTo(this.cx + czw, czy); ctx.stroke();
+      }
+    }
 
     // 水（带波浪液面）
     if (this.level > 0.001) {

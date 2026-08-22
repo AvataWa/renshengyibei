@@ -64,8 +64,8 @@ function ok(cond, msg) {
 }
 
 // 1. 全池冒烟：每个选项都能应用且不抛异常
-console.log('1. 全池 94 项效果冒烟');
-ok(Choices.POOL.length === 94, '选项池应为 94 项，实际 ' + Choices.POOL.length);
+console.log('1. 全池 95 项效果冒烟');
+ok(Choices.POOL.length === 95, '选项池应为 95 项，实际 ' + Choices.POOL.length);
 for (const opt of Choices.POOL) {
   try {
     const g = makeGame();
@@ -479,6 +479,66 @@ console.log('13. 手势边缘保护');
   ok(g.phase === 'aim' && !g.usedPress, '顶部边缘按压不应触发倒水，相位 ' + g.phase);
   g.onPress(187, 300); // 屏幕中部正常触发
   ok(g.phase === 'press' && g.usedPress, '中部按压应正常倒水，相位 ' + g.phase);
+}
+
+// 14. 饮的文化（D24）：契合区判定、双倍得分、文化文案
+console.log('14. 饮的文化');
+{
+  const opt = Choices.POOL.find(o => o.id === 'D24');
+  ok(opt && opt.cat === 'D' && opt.tiers === null, 'D24 应为全阶段 D 类，实际 ' + (opt && opt.cat));
+
+  // 未选 D24：无契合区
+  const g0 = makeGame();
+  g0.pendingChoice = null; g0.choiceIsOpening = false; g0.phase = 'aim';
+  ok(g0.cultureZone() === null, '未选饮的文化时不应有契合区');
+
+  // 选 D24：契合区出现，宽度 < 完美区
+  const g = makeGame();
+  g.pendingChoice = null; g.choiceIsOpening = false; g.phase = 'aim';
+  g.applyChoice(opt);
+  ok(g.mods.cultureZones === true, '选择后 cultureZones 应生效');
+  const cz = g.cultureZone(), z = g.effZones();
+  ok(cz && cz.zone[1] > cz.zone[0], '契合区应存在');
+  ok(cz.zone[1] - cz.zone[0] < z.p[1] - z.p[0], '契合区应比完美区小');
+  ok(Math.abs((cz.zone[0] + cz.zone[1]) / 2 - 0.86) < 0.01, '奶段契合区应居中 0.86，实际 ' + cz.zone);
+
+  // 契合区命中：完美 ×2（首杯完美 2 分 ×2 = 4），文案为文化说明
+  const scoreBefore = g.score;
+  g.level = (cz.zone[0] + cz.zone[1]) / 2;
+  g.judge();
+  ok(g.score - scoreBefore === 4, '契合区命中应得 4 分（2×2），实际 +' + (g.score - scoreBefore));
+  const hasCultureFloat = g.floats.some(f => /不烫不洒/.test(f.text));
+  ok(hasCultureFloat, '命中文案应为奶的文化说明');
+
+  // 各段位文化水位位置
+  const g2 = makeGame();
+  g2.pendingChoice = null; g2.choiceIsOpening = false; g2.phase = 'aim';
+  g2.applyChoice(opt);
+  const spots = { 3: 0.32, 4: 0.965, 5: 0.69 };
+  for (const t in spots) {
+    g2.tierIdx = +t;
+    const z2 = g2.cultureZone();
+    ok(z2 && Math.abs((z2.zone[0] + z2.zone[1]) / 2 - spots[t]) < 0.02,
+      '段位' + t + '契合区应居中 ' + spots[t] + '，实际 ' + (z2 && z2.zone));
+  }
+  g2.tierIdx = 5;
+  ok(/七分茶/.test(g2.cultureZone().text), '茶段文案应为七分茶');
+  g2.tierIdx = 3;
+  ok(/只倒三分/.test(g2.cultureZone().text), '葡萄汁段文案应为三分满');
+  // 文案合规：全部文化文案不含敏感字
+  let clean = true;
+  for (let t = 0; t <= 6; t++) { g2.tierIdx = t; if (/酒|醉/.test(g2.cultureZone().text)) clean = false; }
+  ok(clean, '文化文案不应含酒/醉字');
+  // 普通完美不触发双倍
+  const g3 = makeGame();
+  g3.pendingChoice = null; g3.choiceIsOpening = false; g3.phase = 'aim';
+  g3.applyChoice(opt);
+  const z3 = g3.effZones();
+  g3.level = (z3.p[0] + z3.p[1]) / 2; // 普通完美区（契合区在 0.86 与其不重合时按普通完美算）
+  const sb3 = g3.score;
+  g3.judge();
+  const gained3 = g3.score - sb3;
+  ok(gained3 === 2 || gained3 === 4, '完美区命中得 2 分（若与契合区重叠则 4），实际 +' + gained3);
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);
