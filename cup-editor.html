@@ -49,12 +49,22 @@
   #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); background: #33332e;
            color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0;
            transition: opacity .25s; pointer-events: none; z-index: 9; }
+  /* 模式页签 */
+  #modeTabs { display: flex; gap: 6px; padding: 12px 14px 0; }
+  #modeTabs .tab { flex: 1; padding: 8px 0; border: 1px solid #ddd6c4; border-radius: 8px;
+                   background: none; font-size: 13px; color: #8a8574; cursor: pointer; }
+  #modeTabs .tab.on { background: #e8a33d; border-color: #e8a33d; color: #fff; font-weight: 600; }
 </style>
 </head>
 <body>
 <div id="list">
-  <h2>杯型库</h2>
+  <div id="modeTabs">
+    <button class="tab on" data-m="cup">杯型</button>
+    <button class="tab" data-m="ct">容器</button>
+  </div>
+  <h2 id="listTitle">杯型库</h2>
   <div id="items"></div>
+  <div id="ctItems" style="display:none"></div>
   <button id="newBtn">＋ 新建杯型</button>
 </div>
 <div id="stage">
@@ -62,6 +72,7 @@
   <div id="tip">拖动圆点调杯壁 · 菱形节点调杯把（上下两个=附着高度，右侧=外扩大小）· 黄带=合格区 绿带=完美区 · 红虚线=杯口最小宽度</div>
 </div>
 <div id="panel">
+ <div id="cupPanel">
   <h3>基础信息</h3>
   <div class="row"><label>名称</label><input type="text" id="fName"></div>
   <div class="row"><label>提示语</label><input type="text" id="fHint"></div>
@@ -92,10 +103,33 @@
   <button class="btn" id="resetBtn">重置为载入时的样子</button>
   <h3>生成的代码</h3>
   <textarea id="codeOut" readonly></textarea>
+ </div>
+ <div id="ctPanel" style="display:none">
+  <h3>容器</h3>
+  <div class="row"><label>贴图</label><span id="ctFile" style="font-size:12px;color:#6b6656"></span></div>
+  <div class="row"><label>预览杯型</label><select id="ctCup" style="flex:1;padding:6px;border:1px solid #ddd6c4;border-radius:6px;font-size:13px"></select></div>
+  <h3>变换</h3>
+  <div class="row"><label>预倾角</label><input type="range" id="ctTilt" min="0" max="85" step="0.5"><span class="val" id="vTilt"></span></div>
+  <div class="row"><label>缩放</label><input type="range" id="ctScale" min="0.2" max="1.6" step="0.01"><span class="val" id="vScale"></span></div>
+  <div class="row"><label>水平偏移</label><input type="range" id="ctPdx" min="-0.2" max="0.2" step="0.001"><span class="val" id="vPdx"></span></div>
+  <div class="row"><label>垂直偏移</label><input type="range" id="ctPdy" min="-0.25" max="0.15" step="0.001"><span class="val" id="vPdy"></span></div>
+  <h3>位置数据</h3>
+  <div id="ctStats" style="font-size:12px;line-height:1.9;color:#6b6656;background:#f7f4ec;border-radius:8px;padding:10px 12px"></div>
+  <h3>形状（贴图）</h3>
+  <button class="btn" id="ctImgBtn" style="background:#efead9;color:#6b6656">更换贴图 PNG…</button>
+  <input type="file" id="ctImgInput" accept="image/png" style="display:none">
+  <h3>操作</h3>
+  <button class="btn" id="ctSaveBtn" style="background:#e8a33d;color:#fff;font-weight:600">保存到 containers.js</button>
+  <button class="btn" id="ctCopyBtn" style="background:#efead9;color:#6b6656">复制代码</button>
+  <button class="btn" id="ctResetBtn" style="background:none;border:1px solid #ddd6c4;color:#a8a291">重置为载入时的样子</button>
+  <h3>生成的代码</h3>
+  <textarea id="ctCodeOut" readonly style="width:100%;height:80px;font-family:Consolas,monospace;font-size:11px;border:1px solid #e2ddd0;border-radius:8px;padding:8px;resize:vertical;background:#fdfcf8;color:#6b6656"></textarea>
+ </div>
 </div>
 <div id="toast"></div>
 <script src="src/cups.js"></script>
 <script src="src/cups-lab.js"></script>
+<script src="src/containers.js"></script>
 <script>
 (function () {
   'use strict';
@@ -510,6 +544,7 @@
     return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
   }
   cv.addEventListener('pointerdown', function (e) {
+    if (window.__mode === 'ct') return;
     var p = cvPos(e), L = layout();
     // 杯把节点优先（菱形：t1/t2 上下拖，out 左右拖）
     for (var h = 0; h < handleNodes.length; h++) {
@@ -523,6 +558,7 @@
     }
   });
   cv.addEventListener('pointermove', function (e) {
+    if (window.__mode === 'ct') return;
     var p = cvPos(e), L = layout();
     if (dragHandle) {
       var g = L.g, hh = cur.deco.handle;
@@ -541,7 +577,7 @@
     cur.pts[dragIdx] = Math.round(Math.max(0.05, Math.min(1, w)) * 1000) / 1000;
     draw(); drawSpeed(); genCode();
   });
-  cv.addEventListener('pointerup', function () { dragIdx = -1; dragHandle = null; draw(); });
+  cv.addEventListener('pointerup', function () { if (window.__mode === 'ct') return; dragIdx = -1; dragHandle = null; draw(); });
 
   // ---------- 列表（按段位独立杯池分组） ----------
   var TIER_LABELS = ['倒奶 · 人类幼崽', '可乐 · 元气少年', '麦芽 · 未来可期', '葡萄汁 · 职场新人', '玉露 · 职场中坚', '茶 · 人间清醒'];
@@ -604,6 +640,348 @@
 
   // ---------- 启动 ----------
   loadCup(0);
+})();
+</script>
+<script>
+/* ================= 容器编辑模式 =================
+ * 与 game.js drawBucket / spoutTip 完全相同的坐标逻辑：
+ *   pivot = spout + (pivotDx*W, pivotDy*H)
+ *   贴图绕 pivot 旋转 restTilt，anchor 对准 pivot，tip 为出水口（贴图相对坐标）
+ */
+(function () {
+  'use strict';
+  var GW = 375, GH = 667, MOUTH_MIN = 18;
+  var TIER_LABELS = ['倒奶 · 人类幼崽', '可乐 · 元气少年', '麦芽 · 未来可期', '葡萄汁 · 职场新人',
+                     '玉露 · 职场中坚', '茶 · 人间清醒', '回甘 · 岁月回甘'];
+
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  function $(id) { return document.getElementById(id); }
+
+  window.__mode = 'cup';
+
+  var ctCur = null;      // 当前编辑的容器配置（引用Containers元素的深拷贝）
+  var ctSnap = null;     // 重置快照
+  var ctImgs = {};       // file -> Image
+  var ctCupIdx = null;   // 预览杯型在 Cups.CUPS 中的下标
+  var ctInited = false;
+
+  // ---------- 几何（与 game.js 一致） ----------
+  function sampleCup() { return Cups.CUPS[ctCupIdx]; }
+  function cupGeom(cup) {
+    var cupH = GH * 0.28 * (cup.size || 1);
+    var halfW = cupH / (2 * cup.aspect);
+    var maxHalf = GW * 0.33;
+    if (halfW > maxHalf) { halfW = maxHalf; cupH = halfW * 2 * cup.aspect; }
+    var rimW = cup.profile(1) * halfW;
+    if (rimW < MOUTH_MIN) halfW = MOUTH_MIN / cup.profile(1);
+    return { cupH: cupH, halfW: halfW, cx: GW / 2, baseY: GH * 0.74, cupTop: GH * 0.74 - cupH };
+  }
+  function ctXform() {
+    var cfg = ctCur, g = cupGeom(sampleCup());
+    var sp = { x: g.cx - g.halfW * 0.18, y: g.cupTop - GH * 0.10 };
+    var bh = GH * 0.1456;
+    var dh = bh * 2.2 * (cfg.scale || 1), dw = dh * (cfg.w / cfg.h);
+    var px = sp.x + (cfg.pivotDx || 0) * GW, py = sp.y + (cfg.pivotDy || 0) * GH;
+    var a = cfg.restTilt;
+    var lx = (cfg.tip.x - cfg.anchor.x) * dw, ly = (cfg.tip.y - cfg.anchor.y) * dh;
+    var tip = { x: px + lx * Math.cos(a) - ly * Math.sin(a),
+                y: py + lx * Math.sin(a) + ly * Math.cos(a) };
+    return { g: g, sp: sp, px: px, py: py, a: a, dw: dw, dh: dh, tip: tip };
+  }
+  // 世界点 → 贴图相对坐标（u,v）
+  function toSprite(x, y, X) {
+    var dx = x - X.px, dy = y - X.py, ca = Math.cos(X.a), sa = Math.sin(X.a);
+    var lx = dx * ca + dy * sa, ly = -dx * sa + dy * ca;
+    return { u: lx / X.dw + ctCur.anchor.x, v: ly / X.dh + ctCur.anchor.y };
+  }
+
+  // ---------- 绘制 ----------
+  function viewXf() {
+    var s = Math.min(cv.width / GW, cv.height / GH);
+    return { s: s, ox: (cv.width - GW * s) / 2, oy: (cv.height - GH * s) / 2 };
+  }
+  function ctDraw() {
+    if (!ctCur) return;
+    var X = ctXform(), V = viewXf(), g = X.g, cup = sampleCup();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(V.s, 0, 0, V.s, V.ox, V.oy);
+
+    // 场景底
+    ctx.fillStyle = '#F7F0E4'; ctx.fillRect(0, 0, GW, GH);
+    ctx.strokeStyle = '#e2ddd0'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, GW, GH);
+
+    // 杯身（与游戏一致：杯口不描边，杯底 2 倍粗）
+    var i, N = 40;
+    function wAt(t) { return cup.profile(t) * g.halfW; }
+    function yAt(t) { return g.baseY - t * g.cupH; }
+    // 合格区色带
+    var qlo = cup.zones.q[0], qhi = cup.zones.q[1];
+    ctx.fillStyle = 'rgba(232,163,61,0.20)';
+    ctx.fillRect(g.cx - g.halfW, yAt(qhi), g.halfW * 2, yAt(qlo) - yAt(qhi));
+    var pw = (qhi - qlo) / 3;
+    ctx.fillStyle = 'rgba(105,176,86,0.30)';
+    ctx.fillRect(g.cx - g.halfW, yAt(qhi), g.halfW * 2, yAt(qhi - pw) - yAt(qhi));
+    // 杯壁
+    ctx.beginPath();
+    for (i = N; i >= 0; i--) { var t1 = i / N; i === N ? ctx.moveTo(g.cx - wAt(t1), yAt(t1)) : ctx.lineTo(g.cx - wAt(t1), yAt(t1)); }
+    for (i = 0; i <= N; i++) { var t2 = i / N; ctx.lineTo(g.cx + wAt(t2), yAt(t2)); }
+    ctx.strokeStyle = '#2B2A26'; ctx.lineWidth = 4.5; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(g.cx - wAt(0), g.baseY); ctx.lineTo(g.cx + wAt(0), g.baseY);
+    ctx.lineWidth = 9; ctx.stroke();
+    // 杯口范围（绿色段）
+    var rim = wAt(1);
+    ctx.strokeStyle = 'rgba(105,176,86,0.9)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(g.cx - rim, g.cupTop); ctx.lineTo(g.cx + rim, g.cupTop); ctx.stroke();
+
+    // 默认支点位（灰十字）
+    ctx.strokeStyle = 'rgba(43,42,38,0.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(X.sp.x - 8, X.sp.y); ctx.lineTo(X.sp.x + 8, X.sp.y);
+    ctx.moveTo(X.sp.x, X.sp.y - 8); ctx.lineTo(X.sp.x, X.sp.y + 8);
+    ctx.stroke();
+
+    // 容器贴图
+    var img = ctImgs[ctCur.file];
+    ctx.save();
+    ctx.translate(X.px, X.py); ctx.rotate(X.a);
+    if (img && img.complete && img.naturalWidth) {
+      ctx.drawImage(img, -X.dw * ctCur.anchor.x, -X.dh * ctCur.anchor.y, X.dw, X.dh);
+    } else {
+      ctx.fillStyle = 'rgba(120,120,120,0.4)';
+      ctx.fillRect(-X.dw * ctCur.anchor.x, -X.dh * ctCur.anchor.y, X.dw, X.dh);
+    }
+    // 贴图边框（便于看清范围）
+    ctx.strokeStyle = 'rgba(232,163,61,0.5)'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(-X.dw * ctCur.anchor.x, -X.dh * ctCur.anchor.y, X.dw, X.dh);
+    ctx.restore();
+
+    // 出水口落点参考：竖直虚线到杯口
+    ctx.save();
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(192,57,43,0.55)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X.tip.x, X.tip.y); ctx.lineTo(X.tip.x, g.cupTop); ctx.stroke();
+    ctx.setLineDash([]);
+    var inMouth = Math.abs(X.tip.x - g.cx) <= rim;
+    ctx.beginPath(); ctx.arc(X.tip.x, g.cupTop, 4, 0, 7);
+    ctx.fillStyle = inMouth ? 'rgba(105,176,86,0.9)' : 'rgba(192,57,43,0.9)'; ctx.fill();
+    ctx.restore();
+
+    // 支点（蓝）与出水口（红）
+    ctx.beginPath(); ctx.arc(X.px, X.py, 7, 0, 7);
+    ctx.fillStyle = ctDrag === 'anchor' ? '#2e86de' : '#fff'; ctx.fill();
+    ctx.strokeStyle = '#2e86de'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X.tip.x, X.tip.y, 7, 0, 7);
+    ctx.fillStyle = ctDrag === 'tip' ? '#c0392b' : '#fff'; ctx.fill();
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctStats(X, rim);
+  }
+
+  function ctStats(X, rim) {
+    var c = ctCur, dx = X.tip.x - X.g.cx;
+    $('ctStats').innerHTML =
+      '出水口世界坐标 <b>(' + X.tip.x.toFixed(1) + ', ' + X.tip.y.toFixed(1) + ')</b>' +
+      ' · 偏离杯心 <b>' + (dx >= 0 ? '+' : '') + dx.toFixed(1) + 'px</b>' +
+      (Math.abs(dx) <= rim ? ' <span style="color:#5b8c51">在杯口内</span>' : ' <span class="warn">超出杯口！</span>') +
+      '<br>出水口贴图坐标 <b>(' + c.tip.x.toFixed(3) + ', ' + c.tip.y.toFixed(3) + ')</b>' +
+      ' · 支点 <b>(' + c.anchor.x.toFixed(3) + ', ' + c.anchor.y.toFixed(3) + ')</b>' +
+      '<br>杯口半宽 <b>' + rim.toFixed(1) + 'px</b> · 默认支点 <b>(' + X.sp.x.toFixed(1) + ', ' + X.sp.y.toFixed(1) + ')</b>';
+  }
+
+  // ---------- 代码生成 / 面板 ----------
+  function num(v) { return +(+v).toFixed(3); }
+  function ctGenCode() {
+    var c = ctCur;
+    var code = '{ "file": "' + c.file + '", "anchor": { "x": ' + num(c.anchor.x) + ', "y": ' + num(c.anchor.y) +
+      ' }, "tip": { "x": ' + num(c.tip.x) + ', "y": ' + num(c.tip.y) + ' }, "restTilt": ' + num(c.restTilt) +
+      ', "scale": ' + num(c.scale) + ', "pivotDx": ' + num(c.pivotDx) + ', "pivotDy": ' + num(c.pivotDy) +
+      ', "w": ' + c.w + ', "h": ' + c.h + ' }';
+    $('ctCodeOut').value = code;
+    return code;
+  }
+  function ctSyncPanel() {
+    $('ctTilt').value = (ctCur.restTilt * 180 / Math.PI).toFixed(1);
+    $('ctScale').value = ctCur.scale;
+    $('ctPdx').value = ctCur.pivotDx; $('ctPdy').value = ctCur.pivotDy;
+    ctSyncVals();
+  }
+  function ctSyncVals() {
+    $('vTilt').textContent = (+$('ctTilt').value).toFixed(1) + '°';
+    $('vScale').textContent = (+$('ctScale').value).toFixed(2);
+    $('vPdx').textContent = (+$('ctPdx').value).toFixed(3);
+    $('vPdy').textContent = (+$('ctPdy').value).toFixed(3);
+  }
+  function ctRefresh() { ctSyncVals(); ctDraw(); ctGenCode(); }
+
+  $('ctTilt').addEventListener('input', function () { ctCur.restTilt = +this.value * Math.PI / 180; ctRefresh(); });
+  $('ctScale').addEventListener('input', function () { ctCur.scale = +this.value; ctRefresh(); });
+  $('ctPdx').addEventListener('input', function () { ctCur.pivotDx = +this.value; ctRefresh(); });
+  $('ctPdy').addEventListener('input', function () { ctCur.pivotDy = +this.value; ctRefresh(); });
+
+  // ---------- 数据载入 ----------
+  function ctLoad(idx) {
+    ctCur = JSON.parse(JSON.stringify(Containers[idx]));
+    ctCur.index = idx;
+    ctSnap = JSON.parse(JSON.stringify(ctCur));
+    $('ctFile').textContent = ctCur.file + '（' + ctCur.w + '×' + ctCur.h + '）';
+    // 预览杯型：该段位杯池（回甘段沿用倒奶池）
+    var pool = Math.min(idx, 5), sel = $('ctCup'), html = '';
+    for (var i = 0; i < Cups.CUPS.length; i++) {
+      if ((Cups.CUPS[i].pool || 0) === pool)
+        html += '<option value="' + i + '">' + Cups.CUPS[i].name + '（' + Cups.CUPS[i].hint + '）</option>';
+    }
+    sel.innerHTML = html;
+    if (ctCupIdx == null || (Cups.CUPS[ctCupIdx].pool || 0) !== pool) {
+      ctCupIdx = +sel.options[0].value;
+    }
+    sel.value = String(ctCupIdx);
+    ctSyncPanel(); ctDraw(); ctGenCode(); ctRenderList();
+  }
+  $('ctCup').addEventListener('change', function () { ctCupIdx = +this.value; ctDraw(); });
+
+  function ctRenderList() {
+    var html = '';
+    for (var i = 0; i < Containers.length; i++) {
+      html += '<div class="item' + (ctCur && ctCur.index === i ? ' on' : '') + '" data-i="' + i + '">' +
+              '容器 c' + (i + 1) + '<div class="sub">' + (TIER_LABELS[i] || '') + '</div></div>';
+    }
+    $('ctItems').innerHTML = html;
+    Array.prototype.forEach.call($('ctItems').querySelectorAll('.item'), function (el) {
+      el.addEventListener('click', function () { ctLoad(+this.dataset.i); });
+    });
+  }
+
+  // ---------- 拖拽 ----------
+  var ctDrag = null, ctGrab = null;
+  function lgPos(e) {
+    var r = cv.getBoundingClientRect(), V = viewXf();
+    return { x: ((e.clientX - r.left) * (cv.width / r.width) - V.ox) / V.s,
+             y: ((e.clientY - r.top) * (cv.height / r.height) - V.oy) / V.s };
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    if (window.__mode !== 'ct' || !ctCur) return;
+    var p = lgPos(e), X = ctXform();
+    if (Math.hypot(p.x - X.tip.x, p.y - X.tip.y) < 14) { ctDrag = 'tip'; }
+    else if (Math.hypot(p.x - X.px, p.y - X.py) < 14) { ctDrag = 'anchor'; }
+    else {
+      var s = toSprite(p.x, p.y, X);
+      if (s.u >= 0 && s.u <= 1 && s.v >= 0 && s.v <= 1) {
+        ctDrag = 'body'; ctGrab = { dx: p.x - X.px, dy: p.y - X.py };
+      }
+    }
+    if (ctDrag) { cv.setPointerCapture(e.pointerId); ctDraw(); }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (window.__mode !== 'ct' || !ctDrag) return;
+    var p = lgPos(e), X = ctXform();
+    if (ctDrag === 'tip') {
+      var s = toSprite(p.x, p.y, X);
+      ctCur.tip.x = Math.round(Math.max(0, Math.min(1.1, s.u)) * 1000) / 1000;
+      ctCur.tip.y = Math.round(Math.max(0, Math.min(1.1, s.v)) * 1000) / 1000;
+    } else if (ctDrag === 'anchor') {
+      var s2 = toSprite(p.x, p.y, X);
+      ctCur.anchor.x = Math.round(Math.max(0, Math.min(1, s2.u)) * 1000) / 1000;
+      ctCur.anchor.y = Math.round(Math.max(0, Math.min(1, s2.v)) * 1000) / 1000;
+    } else if (ctDrag === 'body') {
+      ctCur.pivotDx = Math.round(((p.x - ctGrab.dx) - X.sp.x) / GW * 1000) / 1000;
+      ctCur.pivotDy = Math.round(((p.y - ctGrab.dy) - X.sp.y) / GH * 1000) / 1000;
+      ctSyncPanel();
+    }
+    ctDraw(); ctGenCode();
+  });
+  cv.addEventListener('pointerup', function () {
+    if (window.__mode !== 'ct') return;
+    ctDrag = null; ctDraw();
+  });
+
+  // ---------- 操作 ----------
+  function ctToast(msg) {
+    var t = $('toast'); t.textContent = msg; t.style.opacity = 1;
+    setTimeout(function () { t.style.opacity = 0; }, 2200);
+  }
+  $('ctResetBtn').addEventListener('click', function () {
+    ctCur = JSON.parse(JSON.stringify(ctSnap));
+    ctSyncPanel(); ctDraw(); ctGenCode(); ctToast('已重置');
+  });
+  $('ctCopyBtn').addEventListener('click', function () {
+    var ta = $('ctCodeOut'); ta.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject())
+      .then(function () { ctToast('代码已复制'); })
+      .catch(function () { document.execCommand('copy'); ctToast('代码已复制'); });
+  });
+  $('ctSaveBtn').addEventListener('click', function () {
+    fetch('/save-container', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ index: ctCur.index, code: ctGenCode() })
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || '保存失败');
+      Containers[ctCur.index] = JSON.parse(JSON.stringify(ctCur));
+      delete Containers[ctCur.index].index;
+      ctSnap = JSON.parse(JSON.stringify(ctCur));
+      ctToast('已保存，containers.js 已更新');
+    }).catch(function (e) {
+      ctToast('保存失败：' + e.message + '（请通过 npm run dev 打开本页）');
+    });
+  });
+  $('ctImgBtn').addEventListener('click', function () { $('ctImgInput').click(); });
+  $('ctImgInput').addEventListener('change', function () {
+    var f = this.files[0]; this.value = '';
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var b64 = String(rd.result).split(',')[1];
+      fetch('/save-container-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index: ctCur.index, data: b64 })
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (!res.ok) throw new Error(res.error || '上传失败');
+        ctCur.w = res.w; ctCur.h = res.h;
+        Containers[ctCur.index].w = res.w; Containers[ctCur.index].h = res.h;
+        ctSnap = JSON.parse(JSON.stringify(ctCur));
+        $('ctFile').textContent = ctCur.file + '（' + res.w + '×' + res.h + '）';
+        var img = new Image();
+        img.onload = function () { ctImgs[ctCur.file] = img; ctDraw(); ctGenCode(); };
+        img.src = ctCur.file + '?_=' + Date.now();
+        ctToast('贴图已更换（' + res.w + '×' + res.h + '）');
+      }).catch(function (e) { ctToast('上传失败：' + e.message); });
+    };
+    rd.readAsDataURL(f);
+  });
+
+  // ---------- 模式切换 ----------
+  var TIPS = {
+    cup: '拖动圆点调杯壁 · 菱形节点调杯把（上下两个=附着高度，右侧=外扩大小）· 黄带=合格区 绿带=完美区 · 红虚线=杯口最小宽度',
+    ct: '拖动容器本体调位置 · 红点=出水口（拖到贴图上的出水位置）· 蓝点=旋转支点 · 绿段=杯口范围 · 灰十字=默认支点位'
+  };
+  function setMode(m) {
+    window.__mode = m;
+    Array.prototype.forEach.call(document.querySelectorAll('#modeTabs .tab'), function (el) {
+      el.classList.toggle('on', el.dataset.m === m);
+    });
+    $('listTitle').textContent = m === 'ct' ? '容器库' : '杯型库';
+    $('items').style.display = m === 'ct' ? 'none' : '';
+    $('ctItems').style.display = m === 'ct' ? '' : 'none';
+    $('newBtn').style.display = m === 'ct' ? 'none' : '';
+    $('cupPanel').style.display = m === 'ct' ? 'none' : '';
+    $('ctPanel').style.display = m === 'ct' ? '' : 'none';
+    $('tip').textContent = TIPS[m];
+    if (m === 'ct') {
+      if (!ctInited) {
+        ctInited = true;
+        Containers.forEach(function (c) {
+          var img = new Image();
+          img.onload = function () { ctDraw(); };
+          img.src = c.file;
+          ctImgs[c.file] = img;
+        });
+        ctLoad(Containers.length - 1); // 默认打开最后调的回甘簸箕
+      } else ctDraw();
+    }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#modeTabs .tab'), function (el) {
+    el.addEventListener('click', function () { setMode(el.dataset.m); });
+  });
 })();
 </script>
 </body>
