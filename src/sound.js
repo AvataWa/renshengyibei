@@ -8,12 +8,10 @@
   var isNode = (typeof module !== 'undefined' && module.exports);
 
   // 一次性音效清单（assets/audio/<name>.mp3）
-  var ONESHOT = ['success', 'perfect', 'fail', 'lucky', 'tap'];
+  var ONESHOT = ['pour_start', 'pour_end', 'splash', 'success', 'perfect', 'fail', 'lucky', 'tap'];
 
   function create(opts) {
     var isWx = opts.isWx;
-    var CFG = opts.config || { volume: {}, rate: {} };
-    var V = CFG.volume || {}, R = CFG.rate || {};
     var getStorage = opts.getStorage || function () { return ''; };
     var setStorage = opts.setStorage || function () {};
     var muted = getStorage('mute') === '1';
@@ -41,11 +39,6 @@
       } catch (e) {}
     }
 
-    // 音量赋值：微信端透传（支持 >1 增益）；浏览器 Audio 限制 [0,1]，超出钳到 1
-    function setVol(a, v) {
-      try { a.volume = isWx ? v : Math.min(1, v); } catch (e) {}
-    }
-
     // 播放一次性音效；rate 用于完美连击变调（浏览器/微信基础库≥2.11 支持）
     function play(name, o) {
       if (muted) return;
@@ -54,36 +47,32 @@
         var a = cache[name];
         if (!a) { a = mk(name); cache[name] = a; }
         a.loop = false;
-        setVol(a, o.volume != null ? o.volume : 1);
+        a.volume = o.volume != null ? o.volume : 1;
         setRate(a, o.rate);
         if (isWx) { a.stop(); a.play(); }
         else { a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () {}); }
       } catch (e) {}
     }
 
-    // 倒水开始：直接进陶瓷杯注水循环（无起音），音调随液面爬升
+    // 倒水开始：起音 + 水流循环
     function startPour() {
       if (muted) return;
       try {
+        play('pour_start', { volume: 0.8 });
         if (!pourLoop) pourLoop = mk('pour_loop');
         pourLoop.loop = true;
-        setVol(pourLoop, V.pourLoop != null ? V.pourLoop : 1);
-        setRate(pourLoop, R.pourLo || 1);
+        pourLoop.volume = 0.7;
         if (isWx) { pourLoop.stop(); pourLoop.play(); }
         else { pourLoop.currentTime = 0; var p = pourLoop.play(); if (p && p.catch) p.catch(function () {}); }
       } catch (e) {}
     }
 
-    // 倒水循环音调：随液面升高而升调（0.85 → ~1.4），听觉上可感知进度
-    function setPourPitch(rate) {
-      try { if (pourLoop) setRate(pourLoop, rate); } catch (e) {}
-    }
-
-    // 倒水结束：直接停循环（无收尾音）
+    // 倒水结束：停循环 + 收尾音
     function stopPour() {
       try {
         if (pourLoop) { if (isWx) pourLoop.stop(); else pourLoop.pause(); }
       } catch (e) {}
+      play('pour_end', { volume: 0.7 });
     }
 
     // 背景音乐（低音量循环；浏览器需在首次用户手势后启动）
@@ -93,7 +82,7 @@
       try {
         if (!bgm) bgm = mk('bgm');
         bgm.loop = true;
-        setVol(bgm, V.bgm != null ? V.bgm : 0.2); // 压低背景音，突出倒水音调爬升与判定音
+        bgm.volume = 0.22;
         if (isWx) bgm.play();
         else { var p = bgm.play(); if (p && p.catch) p.catch(function () { bgmStarted = false; }); }
       } catch (e) { bgmStarted = false; }
@@ -121,7 +110,6 @@
       play: play,
       startPour: startPour,
       stopPour: stopPour,
-      setPourPitch: setPourPitch,
       startBgm: startBgm,
       toggleMute: toggleMute,
       isMuted: function () { return muted; },

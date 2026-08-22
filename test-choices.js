@@ -19,11 +19,25 @@ function makeGame() {
     canvas: { width: 750, height: 1334, getContext: () => mockCtx() },
     ctx: mockCtx(), W: 375, H: 667,
     onTouchStart: () => {}, onTouchEnd: () => {},
-    getStorage: () => '', setStorage: () => {}, vibrate: () => {}, share: () => {}
+    getStorage: () => '', setStorage: () => {}, vibrate: () => {}, share: () => {},
+    sound: makeSoundMock()
   };
   const g = new Game(env);
   g.startGame();
   return g;
+}
+// 录音 mock：记录所有声音调用
+function makeSoundMock() {
+  const calls = [];
+  return {
+    calls,
+    play: (n) => calls.push(n),
+    startPour: () => calls.push('startPour'),
+    stopPour: () => calls.push('stopPour'),
+    startBgm: () => calls.push('startBgm'),
+    toggleMute: () => false,
+    isMuted: () => false
+  };
 }
 // 带历史最高分开局（用于解锁「人生起点」的测试）
 function makeGameBest(best) {
@@ -388,6 +402,32 @@ console.log('10. 操作提示时序');
   ok(g.hintDelay > 0.4, '新杯提示应有 1.5 秒静默期，剩余 ' + g.hintDelay.toFixed(2));
   step(g, 1.6);
   ok(g.hintDelay <= 0, '1.5 秒无按压后提示应再次出现');
+}
+
+// 11. 声音接线：倒水起止/判定/失败/选卡 各事件触发对应音效
+console.log('11. 声音接线');
+{
+  const g = makeGame();
+  const calls = g.sound.calls;
+  g.onPress(100, 100); // 开始倒水
+  ok(calls.includes('startBgm'), '首次触摸应解锁背景音乐');
+  ok(calls.includes('startPour'), '按压开始应播放倒水起音+循环');
+  g.onRelease();
+  ok(calls.includes('stopPour'), '松手应停循环+收尾音');
+
+  const g2 = makeGame();
+  g2.win(2, '完美!'); // 完美 → 风铃
+  ok(g2.sound.calls.includes('perfect'), '完美应播放风铃音');
+  const g3 = makeGame();
+  g3.win(1, '完成'); // 普通完成 → 叮
+  ok(g3.sound.calls.includes('success'), '普通完成应播放叮');
+  const g4 = makeGame();
+  g4.redoLeft = 0;
+  g4.finalizeFail('水溢出来啦');
+  ok(g4.sound.calls.includes('fail'), '失败应播放失败音');
+  const g5 = makeGame();
+  g5.applyChoice(Choices.POOL[0]); // 选定人生选项 → 确认音
+  ok(g5.sound.calls.includes('tap'), '选定选项应播放确认音');
 }
 
 console.log(`\n结果: ${pass} 通过, ${failCount} 失败`);

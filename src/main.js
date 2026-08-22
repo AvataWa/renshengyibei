@@ -215,6 +215,16 @@
       rankError: function () { return rankErr; }
     };
 
+    // 声音：双端适配的音频模块（一次性音效 + 倒水循环 + 背景音乐 + 静音持久化）
+    var Sound = (typeof module !== 'undefined' && module.exports) ? require('./sound.js') : root.Sound;
+    if (Sound) {
+      env.sound = Sound.create({
+        isWx: isWx,
+        getStorage: env.getStorage,
+        setStorage: env.setStorage
+      });
+    }
+
     var game = new Game(env);
     game.start();
   }
