@@ -179,8 +179,12 @@
   };
 
   // 播放一次性音效（sound 未注入时静默跳过，Node 测试环境安全）
+  // 音量缺省时自动取 audio.config.js 的 volume[name]，调用处只需传差异参数（如 rate）
   Game.prototype.sfx = function (name, opts) {
-    if (this.sound) this.sound.play(name, opts);
+    if (!this.sound) return;
+    opts = opts || {};
+    if (opts.volume == null && AV[name] != null) opts.volume = AV[name];
+    this.sound.play(name, opts);
   };
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
@@ -252,7 +256,7 @@
 
   // 应用选项效果
   Game.prototype.applyChoice = function (opt) {
-    this.sfx('tap', { volume: 0.8 }); // 选定人生选项：确认音
+    this.sfx('tap'); // 选定人生选项：确认音
     var fx0 = opt.fx || {};
     // 段位之力：先抽段位，再从该段位效果池随机 1 条（30% 概率 2 条进入二选一）
     if (fx0.tierPick || fx0.tierPickNext) { this.applyTierDraw(opt, fx0); return; }
@@ -511,7 +515,7 @@
       if (this.overlay) { this.handleOverlayTap(x, y); return; }
       for (var i = 0; i < this.menuButtons.length; i++) {
         var b = this.menuButtons[i];
-        if (Math.hypot(x - b.x, y - b.y) <= b.r + 6) { this.sfx('tap', { volume: 0.7 }); this.handleMenuButton(b.key); return; }
+        if (Math.hypot(x - b.x, y - b.y) <= b.r + 6) { this.sfx('tap'); this.handleMenuButton(b.key); return; }
       }
       this.startGame(); // 策划案：主界面按下屏幕即开始第一杯
       return;
@@ -522,7 +526,7 @@
         var P = this._listPanel || {};
         if (P.close && x >= P.close.x && x <= P.close.x + P.close.w && y >= P.close.y && y <= P.close.y + P.close.h) {
           this.choiceListOpen = false;
-          this.sfx('tap', { volume: 0.6 });
+          this.sfx('tap');
           return;
         }
         if (P.list && x >= P.list.x && x <= P.list.x + P.list.w && y >= P.list.y && y <= P.list.y + P.list.h) {
@@ -535,7 +539,7 @@
       if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
         this.choiceListOpen = true;
         this._listDrag = null;
-        this.sfx('tap', { volume: 0.6 });
+        this.sfx('tap');
         return;
       }
       // 悔棋面板：重来一杯 / 接受结局（面板打开时吞掉其它点击）
@@ -544,7 +548,7 @@
         for (var li = 0; li < lcs.length; li++) {
           var lr = lcs[li];
           if (x >= lr.x && x <= lr.x + lr.w && y >= lr.y && y <= lr.y + lr.h) {
-            this.sfx('tap', { volume: 0.7 });
+            this.sfx('tap');
             if (lr.key === 'redo') this.redoCup();
             else { this.redoLeft = 0; this.finalizeFail(this.failReason); }
             return;
@@ -605,7 +609,7 @@
       for (var j = 0; j < this.overButtons.length; j++) {
         var ob = this.overButtons[j];
         if (x >= ob.x && x <= ob.x + ob.w && y >= ob.y && y <= ob.y + ob.h) {
-          this.sfx('tap', { volume: 0.7 });
+          this.sfx('tap');
           this.handleOverButton(ob.key);
           return;
         }
@@ -668,7 +672,7 @@
       var st = this.soundToggle;
       if (st && this.sound && x >= st.x && x <= st.x + st.w && y >= st.y && y <= st.y + st.h) {
         this.sound.toggleMute();
-        this.sfx('tap', { volume: 0.7 }); // 取消静音时给反馈（静音中则静默）
+        this.sfx('tap'); // 取消静音时给反馈（静音中则静默）
         return;
       }
       var t = this.vibrateToggle;
@@ -952,9 +956,9 @@
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
     // 结果音效：升段 shimmer 最优先；完美按连击数逐级升调；普通完成温和叮
-    if (didTierUp) this.sfx('lucky', { volume: 0.25 });
-    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(1.5, 1 + 0.12 * (this.perfectStreak - 1)), volume: 5 });
-    else this.sfx('success', { rate: 1.2, volume: 0.4 }); // 升调版叮，听感更亮
+    if (didTierUp) this.sfx('lucky');
+    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(AR.perfectCap || 1.5, 1 + (AR.perfectStep || 0.12) * (this.perfectStreak - 1)) });
+    else this.sfx('success', { rate: AR.success || 1.2 }); // 升调版叮，听感更亮
     this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
     // 先原样停留看清结果（最后 0.18s 淡出）；有人生路口待选时多停 0.5s，让阶段提升的放大回弹/浮字先展示完
@@ -976,7 +980,7 @@
     if (m.failProtect > 0) {
       m.failProtect--;
       this.toast('失败保护：原地续命（剩 ' + m.failProtect + ' 次）');
-      this.sfx('lucky', { volume: 0.25 });
+      this.sfx('lucky');
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -988,7 +992,7 @@
     if (m.fund && this.fundBal >= 10) {
       this.fundBal -= 10;
       this.toast('退路基金 −10：替你挡下这次失败');
-      this.sfx('lucky', { volume: 0.25 });
+      this.sfx('lucky');
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -1001,7 +1005,7 @@
       this.graceArmed = false;
       this.graceTier = -1;
       this.toast('跳槽窗口期：第一杯有惊无险');
-      this.sfx('lucky', { volume: 0.25 });
+      this.sfx('lucky');
       this.win(1, '有惊无险！');
       return;
     }
@@ -1009,7 +1013,7 @@
     if (this.redoLeft > 0) {
       this.failReason = reason;
       this.phase = 'lastChance';
-      this.sfx('fail', { volume: 0.8 });
+      this.sfx('fail');
       if (this.vibrateOn) this.env.vibrate();
       return;
     }
@@ -1027,7 +1031,7 @@
     }
     this.phase = 'failed';
     this.phaseTimer = 0.9;
-    this.sfx('fail', { volume: 0.8 });
+    this.sfx('fail');
     if (this.vibrateOn) this.env.vibrate();
     if (this.score > this.best) {
       this.best = this.score;
@@ -1162,7 +1166,7 @@
       this.level += df;
       this.poured += df;
       // 倒水音调随液面大幅爬升（0.8 → 1.8）：玩家能"听"出快满了
-      if (this.sound && this._pourSndOn) this.sound.setPourPitch(0.8 + Math.min(1, this.level) * 1.0);
+      if (this.sound && this._pourSndOn) this.sound.setPourPitch((AR.pourLo || 0.8) + Math.min(1, this.level) * ((AR.pourHi || 1.8) - (AR.pourLo || 0.8)));
       this.spawnSplash();
       this.spawnSpoutMist();
       if (this.level >= 1) { this.level = 1; this.fail('水溢出来啦'); }
@@ -1183,7 +1187,7 @@
       if (this.phaseTimer <= 0) {
         this.state = 'over';
         // 破纪录时结算页弹出庆祝音（失败音已在 fail 时播过）
-        if (this.newRecord) this.sfx('perfect', { rate: 0.9, volume: 0.9 });
+        if (this.newRecord) this.sfx('perfect', { rate: AR.record || 0.9, volume: AV.record });
       }
     }
   };

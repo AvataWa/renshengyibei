@@ -8,6 +8,7 @@
       "src/cups.js",
       "src/containers.js",
       "src/choices.js",
+      "src/audio.config.js",
       "src/sound.js",
       "src/tiers.config.js",
       "src/lines.js",

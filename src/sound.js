@@ -12,6 +12,8 @@
 
   function create(opts) {
     var isWx = opts.isWx;
+    var CFG = opts.config || { volume: {}, rate: {} };
+    var V = CFG.volume || {}, R = CFG.rate || {};
     var getStorage = opts.getStorage || function () { return ''; };
     var setStorage = opts.setStorage || function () {};
     var muted = getStorage('mute') === '1';
@@ -65,8 +67,8 @@
       try {
         if (!pourLoop) pourLoop = mk('pour_loop');
         pourLoop.loop = true;
-        setVol(pourLoop, 1.5);
-        setRate(pourLoop, 0.8);
+        setVol(pourLoop, V.pourLoop != null ? V.pourLoop : 1);
+        setRate(pourLoop, R.pourLo || 1);
         if (isWx) { pourLoop.stop(); pourLoop.play(); }
         else { pourLoop.currentTime = 0; var p = pourLoop.play(); if (p && p.catch) p.catch(function () {}); }
       } catch (e) {}
@@ -91,7 +93,7 @@
       try {
         if (!bgm) bgm = mk('bgm');
         bgm.loop = true;
-        setVol(bgm, 0.08); // 压低背景音，突出倒水音调爬升与判定音
+        setVol(bgm, V.bgm != null ? V.bgm : 0.2); // 压低背景音，突出倒水音调爬升与判定音
         if (isWx) bgm.play();
         else { var p = bgm.play(); if (p && p.catch) p.catch(function () { bgmStarted = false; }); }
       } catch (e) { bgmStarted = false; }
