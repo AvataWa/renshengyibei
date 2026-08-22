@@ -930,7 +930,7 @@
     }
     this.score += pts;
     if (m.equity) this.equityBal += 1; // 股权池：每杯 1 股，结算 ×3 兑现
-    if (m.fund) this.fundBal += 1;     // 退路基金：每杯存 1
+    if (m.fund) this.fundBal = Math.min(20, this.fundBal + 1);     // 退路基金：每杯存 1，封顶 20（免失败次数不可累积）
     if (m.teapot && !this.teapotOn) {  // 茶宠：连续不失败养成
       this.teapotN++;
       if (this.teapotN >= m.teapot.need) {
@@ -1026,10 +1026,10 @@
       this.tickCurses();
       return;
     }
-    // 退路基金：攒够 10 自动抵一次失败
-    if (m.fund && this.fundBal >= 10) {
-      this.fundBal -= 10;
-      this.toast('退路基金 −10：替你挡下这次失败');
+    // 退路基金：攒满 20 自动抵一次失败（余额封顶 20，次数不可累积）
+    if (m.fund && this.fundBal >= 20) {
+      this.fundBal -= 20;
+      this.toast('退路基金 −20：替你挡下这次失败');
       this.sfx('lucky');
       this.failReason = '';
       this.phase = 'next';
@@ -1970,7 +1970,7 @@
     // 资金池/诅咒状态条（仅在有相关选择时显示）
     var chips = [];
     if (this.mods.bank) chips.push('复利 ¥' + Math.round(this.bankBal));
-    if (this.mods.fund) chips.push('基金 ' + this.fundBal + '/10');
+    if (this.mods.fund) chips.push('基金 ' + this.fundBal + '/20');
     if (this.mods.equity) chips.push('股权 ' + this.equityBal + ' 股');
     if (this.curses.length) chips.push('「' + this.curses[0].name + '」剩 ' + this.curses[0].left + ' 杯');
     if (this.redoLeft > 0) chips.push('悔棋 ×' + this.redoLeft);

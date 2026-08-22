@@ -136,7 +136,7 @@
     { id: 'D21', cat: 'D', name: '股票分红', desc: '当前总分 +30%', flavor: '意外的收益，犒赏认真的人。', tiers: [3], fx: { scoreMultNow: 1.3 } },
     { id: 'D22', cat: 'D', name: '股权池', desc: '之后每杯 +1 分存入股权，结算时股权 ×3 兑现', flavor: '熬到兑现那天，都值了。', tiers: [3], fx: { equity: true } },
     // 职场中坚 · 玉露
-    { id: 'B26', cat: 'B', name: '退路基金', desc: '每杯 +1 分存入基金，基金 ≥10 分时自动抵消一次失败', flavor: '留一手的人，输得起。', tiers: [4], fx: { fund: true } },
+    { id: 'B26', cat: 'B', name: '退路基金', desc: '每杯 +1 分存入基金（最多存 20），基金满 20 分时自动抵消一次失败', flavor: '留一手的人，输得起。', tiers: [4], fx: { fund: true } },
     { id: 'C23', cat: 'C', name: '重来一杯', desc: '每局 2 次：判定失败后可选择重倒该杯（放弃原结果）', flavor: '中年的奢侈，是重来一次的机会。', tiers: [4], fx: { redo: 2 } },
     // 人间清醒 · 茶
     { id: 'B27', cat: 'B', name: '回甘', desc: '每次完美后，下一杯前 1 秒出水 −20%', flavor: '回甘来时，急不得。', tiers: [5], fx: { afterPerfectSlow: { dur: 1, scale: 0.8 } } },

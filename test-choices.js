@@ -260,13 +260,22 @@ console.log('8. v2 新机制专项');
   g2.win(1, '不错!');
   ok(g2.foamLayers === 0, 'C19 非完美应全部脱落');
 
-  // B26 退路基金：≥10 自动抵失败
+  // B26 退路基金：满 20 自动抵失败，余额封顶 20 不可累积
   const g3 = makeGame();
   g3.applyChoice(Choices.POOL.find(c => c.id === 'B26'));
-  g3.fundBal = 10;
+  g3.fundBal = 19;
   g3.fail('倒得太满啦');
-  ok(g3.state === 'play' && g3.phase === 'next', 'B26 基金应挡下失败，实际 ' + g3.state + '/' + g3.phase);
-  ok(g3.fundBal === 0, 'B26 基金应扣 10，实际 ' + g3.fundBal);
+  ok(g3.phase === 'failed', 'B26 基金 19 分不应挡失败，实际相位 ' + g3.phase);
+  const g3b = makeGame();
+  g3b.applyChoice(Choices.POOL.find(c => c.id === 'B26'));
+  g3b.fundBal = 20;
+  g3b.fail('倒得太满啦');
+  ok(g3b.state === 'play' && g3b.phase === 'next', 'B26 基金满 20 应挡下失败，实际 ' + g3b.state + '/' + g3b.phase);
+  ok(g3b.fundBal === 0, 'B26 基金应扣 20，实际 ' + g3b.fundBal);
+  // 封顶：余额 20 时继续存款不累积
+  g3b.fundBal = 20;
+  g3b.win(1, '不错!');
+  ok(g3b.fundBal === 20, 'B26 基金应封顶 20 不累积，实际 ' + g3b.fundBal);
 
   // C23 重来一杯：悔棋进入 lastChance 并可回滚
   const g4 = makeGame();
