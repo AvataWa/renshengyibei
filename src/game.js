@@ -7,10 +7,14 @@
   var Cups = isNode ? require('./cups.js') : root.Cups;
   var Containers = isNode ? require('./containers.js') : root.Containers;
   var Choices = isNode ? require('./choices.js') : root.Choices;
-  var Game = factory(Cups, Containers, Choices);
+  var AudioCfg = isNode ? require('./audio.config.js') : root.AudioConfig;
+  var Game = factory(Cups, Containers, Choices, AudioCfg);
   if (isNode) module.exports = Game;
   else root.Game = Game;
-})(typeof GameGlobal !== 'undefined' ? GameGlobal : (typeof self !== 'undefined' ? self : this), function (Cups, Containers, Choices) {
+})(typeof GameGlobal !== 'undefined' ? GameGlobal : (typeof self !== 'undefined' ? self : this), function (Cups, Containers, Choices, AudioCfg) {
+
+  var AV = (AudioCfg && AudioCfg.volume) || {}; // 音量表（audio.config.js 手调）
+  var AR = (AudioCfg && AudioCfg.rate) || {};   // 音调表
 
   var DEFAULTS = {
     POUR_THRESHOLD: 0.20,  // 水桶倾斜超过该弧度开始出水
@@ -40,6 +44,8 @@
     for (var k in DEFAULTS) this.T[k] = (env.tuning && env.tuning[k] !== undefined) ? env.tuning[k] : DEFAULTS[k];
     // 美术素材（未加载完成时回退矢量绘制）
     this.assets = env.assets || {};
+    // 声音模块（main.js 注入；Node 测试环境为空，所有 sfx 调用需判空）
+    this.sound = env.sound || null;
     // 水桶贴图锚点：壶嘴尖在贴图内的相对位置（实测 0.987, 0.517）
     this.bucketAnchor = { x: 0.987, y: 0.517 };
 
@@ -69,6 +75,7 @@
     this.roundFade = 1;      // 新杯淡入过渡（1 = 完全显示）
     this.containerIdx = 0;   // 本回合容器索引（newRound 时冻结）
     this.surfaceWave = 0;    // 液面波动强度：倒水时 1，静止后衰减到 0（平静便于读进度）
+    this._pourSndOn = false; // 倒水水声是否已响起（出水第一帧才触发）
     this.streamX = 0;        // 水流落点 X（首帧倒水前兜底，避免 NaN 粒子）
     this.failReason = '';
 
@@ -142,6 +149,8 @@
     this._listDrag = null;    // 面板拖动状态
     this.choiceIsOpening = false; // 开局天赋三选一（出生前的选择）标记
     this._noIncRound = false; // 开局天赋选完不跳杯标记
+    this.hintDelay = 0;       // 操作提示延时：开局立即显示，倒完一杯后 1.5 秒无按压再显示
+    this._firstAim = false;   // 本局首次进入待倒（开局提示不延时）
     // ── v2 新机制状态 ──
     this.curses = [];         // 先苦后甜：{left, pen, reward, name}
     this.roundStartT = 0;     // 本杯开始时刻（区域脉冲/衰减用）
@@ -167,6 +176,15 @@
     this.preCup = null;       // 悔棋快照 {score, streak}
     this.lastChanceRects = null; // 悔棋面板按钮热区
     this.rankPulseT = 0;      // 阶段提升动画剩余时长（0.6s 放大回弹）
+  };
+
+  // 播放一次性音效（sound 未注入时静默跳过，Node 测试环境安全）
+  // 音量缺省时自动取 audio.config.js 的 volume[name]，调用处只需传差异参数（如 rate）
+  Game.prototype.sfx = function (name, opts) {
+    if (!this.sound) return;
+    opts = opts || {};
+    if (opts.volume == null && AV[name] != null) opts.volume = AV[name];
+    this.sound.play(name, opts);
   };
 
   // 生效目标区：杯型基础区 × 选择修正（完美区始终贴合合格区顶部）
@@ -238,6 +256,7 @@
 
   // 应用选项效果
   Game.prototype.applyChoice = function (opt) {
+    this.sfx('tap'); // 选定人生选项：确认音
     var fx0 = opt.fx || {};
     // 段位之力：先抽段位，再从该段位效果池随机 1 条（30% 概率 2 条进入二选一）
     if (fx0.tierPick || fx0.tierPickNext) { this.applyTierDraw(opt, fx0); return; }
@@ -473,6 +492,8 @@
   Game.prototype.onInterrupt = function () {
     if (this.state !== 'play' || this.phase !== 'press') return;
     this.pressing = false;
+    if (this._pourSndOn && this.sound) this.sound.stopPour();
+    this._pourSndOn = false;
     if (this.reverseCups > 0) this.angle = 0; // 反转自倒模式：同时收角度暂停出水
     this.usedPress = false;
     this.phase = 'aim';
@@ -489,11 +510,12 @@
   };
 
   Game.prototype.onPress = function (x, y) {
+    if (this.sound) this.sound.startBgm(); // 首次触摸解锁背景音乐（浏览器自动播放策略）
     if (this.state === 'menu') {
       if (this.overlay) { this.handleOverlayTap(x, y); return; }
       for (var i = 0; i < this.menuButtons.length; i++) {
         var b = this.menuButtons[i];
-        if (Math.hypot(x - b.x, y - b.y) <= b.r + 6) { this.handleMenuButton(b.key); return; }
+        if (Math.hypot(x - b.x, y - b.y) <= b.r + 6) { this.sfx('tap'); this.handleMenuButton(b.key); return; }
       }
       this.startGame(); // 策划案：主界面按下屏幕即开始第一杯
       return;
@@ -504,6 +526,7 @@
         var P = this._listPanel || {};
         if (P.close && x >= P.close.x && x <= P.close.x + P.close.w && y >= P.close.y && y <= P.close.y + P.close.h) {
           this.choiceListOpen = false;
+          this.sfx('tap');
           return;
         }
         if (P.list && x >= P.list.x && x <= P.list.x + P.list.w && y >= P.list.y && y <= P.list.y + P.list.h) {
@@ -516,6 +539,7 @@
       if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
         this.choiceListOpen = true;
         this._listDrag = null;
+        this.sfx('tap');
         return;
       }
       // 悔棋面板：重来一杯 / 接受结局（面板打开时吞掉其它点击）
@@ -524,6 +548,7 @@
         for (var li = 0; li < lcs.length; li++) {
           var lr = lcs[li];
           if (x >= lr.x && x <= lr.x + lr.w && y >= lr.y && y <= lr.y + lr.h) {
+            this.sfx('tap');
             if (lr.key === 'redo') this.redoCup();
             else { this.redoLeft = 0; this.finalizeFail(this.failReason); }
             return;
@@ -556,6 +581,8 @@
         if (!this.reverseLock && this.level > 0.01) {
           this.reverseLock = true;
           this.pressing = false;
+          if (this._pourSndOn && this.sound) this.sound.stopPour();
+          this._pourSndOn = false;
           this.phase = 'settle';
           this.phaseTimer = 0.35;
         }
@@ -574,6 +601,7 @@
         this.pressing = true;
         this.pressStart = this.time;   // 误触保护计时起点
         this.phase = 'press';
+        this._pourSndOn = false;       // 水声等真正出水那一帧再响（见 update 倒水块）
       }
       return;
     }
@@ -581,6 +609,7 @@
       for (var j = 0; j < this.overButtons.length; j++) {
         var ob = this.overButtons[j];
         if (x >= ob.x && x <= ob.x + ob.w && y >= ob.y && y <= ob.y + ob.h) {
+          this.sfx('tap');
           this.handleOverButton(ob.key);
           return;
         }
@@ -594,6 +623,8 @@
     if (this.state === 'play' && this.reverseCups > 0 && !this.reverseLock) return;
     if (this.state === 'play' && this.phase === 'press') {
       this.pressing = false;
+      if (this._pourSndOn && this.sound) this.sound.stopPour(); // 停水流循环 + 收尾音（仅在真正出过水时）
+      this._pourSndOn = false;
       // 误触保护：按压不足 0.06s 视为误碰，撤销本次按压（高压考核选项可关闭保护）
       if (this.mods.tapProtect && this.time - this.pressStart < 0.06) {
         this.usedPress = false;
@@ -638,6 +669,12 @@
       return;
     }
     if (this.overlay === 'settings') {
+      var st = this.soundToggle;
+      if (st && this.sound && x >= st.x && x <= st.x + st.w && y >= st.y && y <= st.y + st.h) {
+        this.sound.toggleMute();
+        this.sfx('tap'); // 取消静音时给反馈（静音中则静默）
+        return;
+      }
       var t = this.vibrateToggle;
       if (t && x >= t.x && x <= t.x + t.w && y >= t.y && y <= t.y + t.h) {
         this.vibrateOn = !this.vibrateOn;
@@ -668,22 +705,28 @@
     this.resetMods();          // 跨局不继承人生选择
     this.easyTierFor = -1;
     this.nextCupPre = null;
+    this._firstAim = true;     // 开局第一杯：操作提示立即显示
     if (this.best > 0 && this.env.uploadScore) this.env.uploadScore(this.best); // 兜底上报历史最高（幂等）
     this.newRound();
-    // 开局天赋三选一（出生前的选择）：只从通用选项抽；选完不跳杯，仍是第 1 杯
-    this.choiceIsOpening = true;
-    this.pendingChoice = this.rollChoices(true);
-    if (this.pendingChoice) {
-      this.phase = 'choice';
-      this.choiceOpenT = this.time; // 1 秒误触保护
-    } else {
-      this.choiceIsOpening = false; // 通用池枯竭的极端兜底：直接开局
+    // 开局天赋三选一（出生前的选择）：历史最高分 ≥20 的玩家才解锁；只从通用选项抽，选完不跳杯
+    if (this.best >= 20) {
+      this.choiceIsOpening = true;
+      this.pendingChoice = this.rollChoices(true);
+      if (this.pendingChoice) {
+        this.phase = 'choice';
+        this.choiceOpenT = this.time; // 1 秒误触保护
+      } else {
+        this.choiceIsOpening = false; // 通用池枯竭的极端兜底：直接开局
+      }
     }
   };
 
   Game.prototype.newRound = function () {
     if (this._noIncRound) this._noIncRound = false; // 开局天赋选完不跳杯
     else this.round++;
+    // 操作提示：开局第一杯立即显示；之后每杯给 1.5 秒静默期，无按压再浮现
+    this.hintDelay = this._firstAim ? 0 : 1.5;
+    this._firstAim = false;
     var tier = Cups.TIERS[this.tierIdx];
     this.tier = tier; // 当前段位（倒水速度等按段位配置取值）
     // 杯型选择：人生选择后的保杯（选项未涉及杯型且段位未变时沿用当前杯），
@@ -912,6 +955,10 @@
     this.floats.push({ text: label, x: this.W / 2, y: ptsY + this.H * 0.042, life: 1.4, color: PAL.INK, size: 0.024 });
     // 完美彩蛋文案：升段/进阶回合已展示晋升提示，不再叠完美提示
     if (basePts === 2 && !didTierUp && !didStageUp) this.toast(Cups.randomLine(Cups.TIERS[this.tierIdx].key));
+    // 结果音效：升段 shimmer 最优先；完美按连击数逐级升调；普通完成温和叮
+    if (didTierUp) this.sfx('lucky');
+    else if (basePts === 2) this.sfx('perfect', { rate: Math.min(AR.perfectCap || 1.5, 1 + (AR.perfectStep || 0.12) * (this.perfectStreak - 1)) });
+    else this.sfx('success', { rate: AR.success || 1.2 }); // 升调版叮，听感更亮
     this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
     // 先原样停留看清结果（最后 0.18s 淡出）；有人生路口待选时多停 0.5s，让阶段提升的放大回弹/浮字先展示完
@@ -933,6 +980,7 @@
     if (m.failProtect > 0) {
       m.failProtect--;
       this.toast('失败保护：原地续命（剩 ' + m.failProtect + ' 次）');
+      this.sfx('lucky');
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -944,6 +992,7 @@
     if (m.fund && this.fundBal >= 10) {
       this.fundBal -= 10;
       this.toast('退路基金 −10：替你挡下这次失败');
+      this.sfx('lucky');
       this.failReason = '';
       this.phase = 'next';
       this.phaseTimer = 0.6;
@@ -956,6 +1005,7 @@
       this.graceArmed = false;
       this.graceTier = -1;
       this.toast('跳槽窗口期：第一杯有惊无险');
+      this.sfx('lucky');
       this.win(1, '有惊无险！');
       return;
     }
@@ -963,6 +1013,7 @@
     if (this.redoLeft > 0) {
       this.failReason = reason;
       this.phase = 'lastChance';
+      this.sfx('fail');
       if (this.vibrateOn) this.env.vibrate();
       return;
     }
@@ -980,6 +1031,7 @@
     }
     this.phase = 'failed';
     this.phaseTimer = 0.9;
+    this.sfx('fail');
     if (this.vibrateOn) this.env.vibrate();
     if (this.score > this.best) {
       this.best = this.score;
@@ -1030,6 +1082,8 @@
     this.time += dt;
     if (this.roundFade < 1) this.roundFade = Math.min(1, this.roundFade + dt / 0.22); // 新杯淡入
     if (this.rankPulseT > 0) this.rankPulseT -= dt; // 阶段提升放大回弹
+    // 操作提示静默期倒计时（仅待倒相位；按压/换杯/抽卡时不走表，提示也不显示）
+    if (this.state === 'play' && this.phase === 'aim' && this.hintDelay > 0) this.hintDelay -= dt;
 
     // 提示与浮字
     var i;
@@ -1076,6 +1130,7 @@
     }
 
     if (pouring && (this.phase === 'press')) {
+      if (!this._pourSndOn) { this._pourSndOn = true; if (this.sound) this.sound.startPour(); } // 出水第一帧才响水声
       // 窄处水位上升更快：横截面积 ∝ 宽度²，故 df/dt ∝ (平均宽度/当前宽度)²
       // 宽肚杯底部慢、收口处猛冲；收腰杯过腰突然加速 —— 每种杯型手感都不同
       // 流速随倾角温和加速：等得越久倒得越快，贪高分就要冒超出的风险
@@ -1110,6 +1165,8 @@
       var df = baseRate * ramp * rateMul * (1 + T.RATE_ACCEL * tiltFrac) * wr * wr * dt;
       this.level += df;
       this.poured += df;
+      // 倒水音调随液面大幅爬升（0.8 → 1.8）：玩家能"听"出快满了
+      if (this.sound && this._pourSndOn) this.sound.setPourPitch((AR.pourLo || 0.8) + Math.min(1, this.level) * ((AR.pourHi || 1.8) - (AR.pourLo || 0.8)));
       this.spawnSplash();
       this.spawnSpoutMist();
       if (this.level >= 1) { this.level = 1; this.fail('水溢出来啦'); }
@@ -1127,7 +1184,11 @@
       }
     } else if (this.phase === 'failed') {
       this.phaseTimer -= dt;
-      if (this.phaseTimer <= 0) this.state = 'over';
+      if (this.phaseTimer <= 0) {
+        this.state = 'over';
+        // 破纪录时结算页弹出庆祝音（失败音已在 fail 时播过）
+        if (this.newRecord) this.sfx('perfect', { rate: AR.record || 0.9, volume: AV.record });
+      }
     }
   };
 
@@ -1225,7 +1286,6 @@
     if (this.state === 'menu') {
       this.drawMenu();
     } else {
-      this.drawTable();
       // 换杯过渡：纯淡入淡出——先停留 0.3s 看清结果，旧杯再用 0.18s 淡出，新杯 0.22s 淡入
       var fr;
       if (this.state === 'play' && this.phase === 'next') fr = Math.min(1, Math.max(0, this.phaseTimer / 0.18));
@@ -1241,7 +1301,7 @@
       this.drawScoreHUD();
       this.drawDrinkTag();
       this.drawFloats();
-      if (this.state === 'play' && this.phase === 'aim') this.drawAimHint();
+      if (this.state === 'play' && this.phase === 'aim' && this.hintDelay <= 0) this.drawAimHint();
       if (this.state === 'over') this.drawOver();
     }
     this.drawToasts();
@@ -1253,10 +1313,10 @@
     if (this.state === 'play' && this.choiceListOpen) this.drawChoicesList();
   };
 
-  // 右侧「已做选择」按钮热区（桌面上沿，避开底部操作提示）
+  // 右侧「已做选择」按钮热区（桌面已移除，按钮落到右下角贴近屏幕底边）
   Game.prototype.choicesBtnRect = function () {
     var w = this.W * 0.26, h = this.H * 0.05;
-    return { x: this.W * 0.97 - w, y: this.H * 0.795, w: w, h: h };
+    return { x: this.W * 0.97 - w, y: this.H * 0.90, w: w, h: h };
   };
 
   Game.prototype.drawBackground = function () {
@@ -1274,12 +1334,7 @@
   };
 
   Game.prototype.drawTable = function () {
-    var ctx = this.ctx, y = this.H * 0.86;
-    ctx.fillStyle = PAL.TABLE;
-    ctx.fillRect(0, y, this.W, this.H - y);
-    ctx.strokeStyle = PAL.INK;
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.W, y); ctx.stroke();
+    // 桌面（底部横线 + 深色区域）已按新布局移除，留空函数防止历史调用残留报错
   };
 
   // 杯身轮廓路径（inset: 0..1 内缩比例）
@@ -1928,7 +1983,7 @@
     ctx.fillStyle = PAL.INK;
     ctx.font = 'bold ' + Math.round(this.H * 0.030) + 'px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('按住屏幕倒水', this.W / 2, this.H * 0.905);
+    ctx.fillText('按住屏幕倒水', this.W / 2, this.H * 0.385); // 屏幕中部（瓶杯之间的空档）
     // 副提示：目标区说明（黄/绿关键词带颜色，对应杯上色带）
     ctx.font = Math.round(this.H * 0.018) + 'px sans-serif';
     var segs = [
@@ -1941,7 +1996,7 @@
     ctx.textAlign = 'left';
     for (si = 0; si < segs.length; si++) {
       ctx.fillStyle = segs[si][1];
-      ctx.fillText(segs[si][0], sx, this.H * 0.94);
+      ctx.fillText(segs[si][0], sx, this.H * 0.425);
       sx += ctx.measureText(segs[si][0]).width;
     }
     ctx.globalAlpha = 1;
@@ -2496,14 +2551,18 @@
         ctx.fillText(rankErr === '未同意隐私协议，好友排行不可用' ? rankErr : '好友排行加载中…', W / 2, py + H * 0.195);
       }
     } else {
-      // 震动开关
+      // 声音 + 震动开关
       var tw = W * 0.34, th = H * 0.05;
-      this.vibrateToggle = { x: W / 2 - tw / 2, y: py + H * 0.10, w: tw, h: th };
+      var soundOn = !(this.sound && this.sound.isMuted());
+      this.soundToggle = { x: W / 2 - tw / 2, y: py + H * 0.10, w: tw, h: th };
+      this.drawCapsule(this.soundToggle.x, this.soundToggle.y, tw, th,
+        soundOn ? PAL.YEL : PAL.TRACK, '声音：' + (soundOn ? '开' : '关'), H * 0.021);
+      this.vibrateToggle = { x: W / 2 - tw / 2, y: py + H * 0.17, w: tw, h: th };
       this.drawCapsule(this.vibrateToggle.x, this.vibrateToggle.y, tw, th,
         this.vibrateOn ? PAL.YEL : PAL.TRACK, '震动：' + (this.vibrateOn ? '开' : '关'), H * 0.021);
       ctx.font = Math.round(H * 0.017) + 'px sans-serif';
       ctx.fillStyle = PAL.MUTED;
-      ctx.fillText('音效与画质选项开发中', W / 2, py + H * 0.22);
+      ctx.fillText('声音含背景音乐与全部音效', W / 2, py + H * 0.24);
     }
 
     // 关闭按钮

@@ -85,6 +85,18 @@
       pose = { tier: tm ? parseInt(tm[1], 10) : 0 };
     }
 
+    // 清档调试：?reset=1 清空全部本地存档（最高分等 wg_* 键），仅浏览器预览生效
+    if (!isWx && typeof location !== 'undefined' && /[?&]reset=1/.test(location.search)) {
+      try {
+        var rm = [];
+        for (var si = 0; si < localStorage.length; si++) {
+          var sk = localStorage.key(si);
+          if (sk && sk.indexOf('wg_') === 0) rm.push(sk);
+        }
+        rm.forEach(function (k) { localStorage.removeItem(k); });
+      } catch (e) {}
+    }
+
     var rankShared = null, rankErr = ''; // 排行榜共享画布（微信开放数据域）+ 失败诊断
 
     // 隐私授权：好友关系类接口（setUserCloudStorage/getFriendCloudStorage）需先获得隐私授权
@@ -202,6 +214,18 @@
       rankCanvas: function () { return rankShared; },
       rankError: function () { return rankErr; }
     };
+
+    // 声音：双端适配的音频模块（一次性音效 + 倒水循环 + 背景音乐 + 静音持久化）
+    var Sound = (typeof module !== 'undefined' && module.exports) ? require('./sound.js') : root.Sound;
+    var AudioCfg = (typeof module !== 'undefined' && module.exports) ? require('./audio.config.js') : root.AudioConfig;
+    if (Sound) {
+      env.sound = Sound.create({
+        isWx: isWx,
+        config: AudioCfg,
+        getStorage: env.getStorage,
+        setStorage: env.setStorage
+      });
+    }
 
     var game = new Game(env);
     game.start();
