@@ -8,7 +8,7 @@
   var isNode = (typeof module !== 'undefined' && module.exports);
 
   // 一次性音效清单（assets/audio/<name>.mp3）
-  var ONESHOT = ['pour_start', 'pour_end', 'splash', 'success', 'perfect', 'fail', 'lucky', 'tap'];
+  var ONESHOT = ['pour_end', 'splash', 'success', 'perfect', 'fail', 'lucky', 'tap'];
 
   function create(opts) {
     var isWx = opts.isWx;
@@ -54,15 +54,14 @@
       } catch (e) {}
     }
 
-    // 倒水开始：起音 + 循环（低音量）
+    // 倒水开始：直接进钢琴循环（无起音），音调随液面爬升
     function startPour() {
       if (muted) return;
       try {
-        play('pour_start', { volume: 0.5 });
         if (!pourLoop) pourLoop = mk('pour_loop');
         pourLoop.loop = true;
-        pourLoop.volume = 0.42;
-        setRate(pourLoop, 0.85);
+        pourLoop.volume = 0.55;
+        setRate(pourLoop, 0.8);
         if (isWx) { pourLoop.stop(); pourLoop.play(); }
         else { pourLoop.currentTime = 0; var p = pourLoop.play(); if (p && p.catch) p.catch(function () {}); }
       } catch (e) {}
@@ -88,7 +87,7 @@
       try {
         if (!bgm) bgm = mk('bgm');
         bgm.loop = true;
-        bgm.volume = 0.22;
+        bgm.volume = 0.12; // 压低背景音，突出倒水音调爬升与判定音
         if (isWx) bgm.play();
         else { var p = bgm.play(); if (p && p.catch) p.catch(function () { bgmStarted = false; }); }
       } catch (e) { bgmStarted = false; }

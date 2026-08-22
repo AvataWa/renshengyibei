@@ -955,7 +955,7 @@
     // 结果音效：升段 shimmer 最优先；完美按连击数逐级升调；普通完成温和叮
     if (didTierUp) this.sfx('lucky', { volume: 0.9 });
     else if (basePts === 2) this.sfx('perfect', { rate: Math.min(1.5, 1 + 0.12 * (this.perfectStreak - 1)) });
-    else this.sfx('success', { volume: 0.9 });
+    else this.sfx('success', { rate: 1.2, volume: 0.9 }); // 升调版叮，听感更亮
     this.tickCurses(); // 先苦后甜：本杯计入惩罚杯数
     this.phase = 'next';
     // 先原样停留看清结果（最后 0.18s 淡出）；有人生路口待选时多停 0.5s，让阶段提升的放大回弹/浮字先展示完
@@ -1162,8 +1162,8 @@
       var df = baseRate * ramp * rateMul * (1 + T.RATE_ACCEL * tiltFrac) * wr * wr * dt;
       this.level += df;
       this.poured += df;
-      // 倒水音调随液面升高（0.85 → ~1.4）：玩家能"听"出快满了
-      if (this.sound && this._pourSndOn) this.sound.setPourPitch(0.85 + Math.min(1, this.level) * 0.55);
+      // 倒水音调随液面大幅爬升（0.8 → 1.8）：玩家能"听"出快满了
+      if (this.sound && this._pourSndOn) this.sound.setPourPitch(0.8 + Math.min(1, this.level) * 1.0);
       if (!this._splashed && this.level > 0.02) { this._splashed = true; this.sfx('splash', { volume: 0.5 }); } // 水流首次触及液面
       this.spawnSplash();
       this.spawnSpoutMist();
